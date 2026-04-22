@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Vallelonga Tech Systems is an immersive AI automation experience led by Candy, a holographic guide for intelligent operations, workflow orchestration, and realtime support.">
+  <meta name="theme-color" content="#020814">
+  <meta property="og:title" content="Vallelonga Tech Systems | Candy Interface">
+  <meta property="og:description" content="An interactive AI automation experience that feels like stepping into a live holographic command deck.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop stop-color='%2312d8ff'/%3E%3Cstop offset='1' stop-color='%238ba8ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='18' fill='%23020a15'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='url(%23g)' stroke-width='5'/%3E%3Cpath d='M20 32h24M32 20v24' stroke='url(%23g)' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <title>Vallelonga Tech Systems | Candy Interface</title>
+  <link rel="preload" href="./styles.css" as="style">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="booting" data-view="overview">
+  <a class="skip-link" href="#command-input">Skip to command interface</a>
+
+  <div class="background-noise" aria-hidden="true"></div>
+  <div class="background-grid" aria-hidden="true"></div>
+  <div class="starscape" aria-hidden="true">
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+
+  <div class="boot-sequence" id="boot-sequence" aria-live="polite">
+    <div class="boot-core">
+      <div class="holo-sphere" aria-hidden="true">
+        <div class="sphere-core"></div>
+        <div class="sphere-ring ring-a"></div>
+        <div class="sphere-ring ring-b"></div>
+        <div class="sphere-ring ring-c"></div>
+        <div class="sphere-ring ring-d"></div>
+        <div class="sphere-ring ring-e"></div>
+        <div class="sphere-ring ring-f"></div>
+        <div class="sphere-axis axis-a"></div>
+        <div class="sphere-axis axis-b"></div>
+        <div class="sphere-axis axis-c"></div>
+        <div class="sphere-particles">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+      <div class="boot-copy">
+        <p class="system-label">Vallelonga Tech Systems // immersive automation deck</p>
+        <h1>Initializing Candy...</h1>
+        <p id="boot-line">Powering holographic data sphere.</p>
+        <div class="boot-meta">
+          <span>AI orchestration</span>
+          <span>Realtime operations</span>
+          <span>Adaptive interface</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="experience" id="top">
+    <header class="hud">
+      <div class="hud-brand">
+        <span class="brand-mark">V</span>
+        <div>
+          <p class="system-label">Vallelonga Tech Systems</p>
+          <strong>Human-guided AI automation</strong>
+        </div>
+      </div>
+      <div class="hud-readout">
+        <span>Mode: <strong id="mode-label">Overview</strong></span>
+        <span>Interface: <strong>Voice-first</strong></span>
+        <span>Status: <strong id="voice-state">Stand by</strong></span>
+      </div>
+    </header>
+
+    <section class="command-theater">
+      <div class="orbit-map" aria-hidden="true">
+        <div class="orbit-ring orbit-one"></div>
+        <div class="orbit-ring orbit-two"></div>
+        <div class="orbit-ring orbit-three"></div>
+
+        <div class="nav-star star-overview active" data-node="overview">
+          <span>Core</span>
+          <small>overview</small>
+        </div>
+        <div class="nav-star star-automation" data-node="automation">
+          <span>Automation</span>
+          <small>systems</small>
+        </div>
+        <div class="nav-star star-platforms" data-node="platforms">
+          <span>Platforms</span>
+          <small>integrations</small>
+        </div>
+        <div class="nav-star star-cases" data-node="cases">
+          <span>Case Files</span>
+          <small>impact</small>
+        </div>
+        <div class="nav-star star-lab" data-node="lab">
+          <span>Lab</span>
+          <small>prototypes</small>
+        </div>
+        <div class="nav-star star-contact" data-node="contact">
+          <span>Contact</span>
+          <small>deploy</small>
+        </div>
+      </div>
+
+      <div class="presence-stage">
+        <div class="arrival-light" aria-hidden="true"></div>
+        <div class="assistant-presence" id="assistant-presence">
+          <div class="presence-glow"></div>
+          <div class="assistant-avatar" aria-hidden="true">
+            <div class="avatar-halo halo-one"></div>
+            <div class="avatar-halo halo-two"></div>
+            <div class="avatar-halo halo-three"></div>
+            <div class="avatar-figure">
+              <div class="hair"></div>
+              <div class="head"></div>
+              <div class="glasses"></div>
+              <div class="neck"></div>
+              <div class="blazer blazer-left"></div>
+              <div class="blazer blazer-right"></div>
+              <div class="inner-dress"></div>
+              <div class="skirt"></div>
+              <div class="sleeve sleeve-left"></div>
+              <div class="sleeve sleeve-right"></div>
+              <div class="leg leg-left"></div>
+              <div class="leg leg-right"></div>
+              <div class="shoe shoe-left"></div>
+              <div class="shoe shoe-right"></div>
+              <div class="badge">Candy<br>VTS</div>
+              <div class="core"></div>
+            </div>
+          </div>
+          <div class="presence-copy">
+            <p class="system-label">Autonomous guide active</p>
+            <h2>Candy</h2>
+            <p id="assistant-status">
+              Welcome to Vallelonga Tech Systems. I can guide you through automations, case files,
+              platform integrations, and deployment strategy.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side-cluster cluster-left">
+        <article class="info-card">
+          <p class="system-label">Realtime orchestration</p>
+          <strong>48 live agents</strong>
+          <span>Monitoring inboxes, CRMs, operations queues, and internal workflows.</span>
+        </article>
+        <article class="info-card">
+          <p class="system-label">Decision layer</p>
+          <strong>Human in control</strong>
+          <span>Automation where it helps, human escalation where trust matters.</span>
+        </article>
+      </aside>
+
+      <aside class="side-cluster cluster-right">
+        <article class="info-card">
+          <p class="system-label">Use cases</p>
+          <strong>Sales, service, ops</strong>
+          <span>Lead routing, support triage, reporting, scheduling, and knowledge workflows.</span>
+        </article>
+        <article class="info-card">
+          <p class="system-label">Interface logic</p>
+          <strong>No menu hunting</strong>
+          <span>Tell Candy what you want and the system adapts around the request.</span>
+        </article>
+      </aside>
+    </section>
+
+    <section class="control-grid">
+      <article class="mission-panel" id="mission-panel">
+        <div class="panel-topline">
+          <span class="system-label">Active brief</span>
+          <span class="pulse-dot"></span>
+        </div>
+        <h3 id="panel-title">Vallelonga Tech Systems</h3>
+        <p id="panel-description">
+          This command deck introduces an AI automation company as a living interface instead of a conventional website.
+          Ask Candy where you want to go and the environment will reshape itself around the conversation.
+        </p>
+        <div class="metric-grid">
+          <div class="metric-card">
+            <span class="metric-label">Primary focus</span>
+            <strong id="metric-one">AI workflow automation</strong>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Operating style</span>
+            <strong id="metric-two">Realtime human guidance</strong>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Best prompt</span>
+            <strong id="metric-three">"Candy, show me automations"</strong>
+          </div>
+        </div>
+      </article>
+
+      <article class="transcript-panel">
+        <div class="panel-topline">
+          <span class="system-label">Conversation stream</span>
+          <span id="listening-indicator">Mic idle</span>
+        </div>
+        <div class="transcript-log" id="transcript-log" aria-live="polite"></div>
+      </article>
+    </section>
+
+    <section class="command-dock">
+      <form id="command-form" autocomplete="off">
+        <label for="command-input">Tell Candy what you want</label>
+        <input
+          id="command-input"
+          name="command"
+          type="text"
+          inputmode="text"
+          placeholder='Try: "show automation systems" or "take me to case files"'
+          aria-describedby="command-helper"
+        >
+      </form>
+      <p class="command-helper" id="command-helper">
+        Voice support starts after your first interaction if your browser allows speech recognition.
+      </p>
+    </section>
+  </main>
+
+  <script src="./script.js" defer></script>
+</body>
+</html>
