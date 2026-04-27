@@ -181,24 +181,44 @@ function interpretCommand(input) {
   };
 }
 
-async function fetchCandyReply() {
+async function fetchCandyReply(onChunk) {
   const response = await fetch("/api/chat", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      messages: conversation
-    })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: conversation })
   });
 
-  const payload = await response.json();
-
   if (!response.ok) {
+    const payload = await response.json();
     throw new Error(payload.detail || payload.error || "Candy is temporarily unavailable.");
   }
 
-  return payload.reply;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = "";
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const data = JSON.parse(line.slice(6));
+      if (data.delta) {
+        fullText += data.delta;
+        onChunk(fullText);
+      }
+      if (data.done) return fullText;
+      if (data.error) throw new Error(data.error);
+    }
+  }
+
+  return fullText;
 }
 
 async function processCommand(text) {
@@ -207,14 +227,29 @@ async function processCommand(text) {
   setView(result.view);
   updateListeningState("Thinking", "Signal routing");
 
+  const wrapper = document.createElement("div");
+  wrapper.className = "message assistant";
+  const label = document.createElement("span");
+  label.className = "message-role";
+  label.textContent = "Candy";
+  const paragraph = document.createElement("p");
+  wrapper.append(label, paragraph);
+  transcriptLog.append(wrapper);
+  transcriptLog.scrollTop = transcriptLog.scrollHeight;
+
   try {
-    const reply = await fetchCandyReply();
-    addMessage("assistant", reply);
-    assistantStatus.textContent = reply;
+    const reply = await fetchCandyReply((partialText) => {
+      paragraph.textContent = partialText;
+      assistantStatus.textContent = partialText;
+      transcriptLog.scrollTop = transcriptLog.scrollHeight;
+    });
+
+    conversation.push({ role: "assistant", content: reply });
     speak(reply);
     updateListeningState(listening ? "Listening" : "Stand by", listening ? "Mic live" : "Mic idle");
   } catch (error) {
-    const fallbackReply = `${result.reply} ${error instanceof Error ? error.message : ""}`.trim();
+    wrapper.remove();
+    const fallbackReply = `${result.reply}${error instanceof Error ? ` — ${error.message}` : ""}`.trim();
     addMessage("assistant", fallbackReply);
     assistantStatus.textContent = fallbackReply;
     speak(result.reply);

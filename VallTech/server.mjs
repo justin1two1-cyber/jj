@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
-const model = process.env.OPENAI_MODEL || "gpt-5.2";
+const model = process.env.OPENAI_MODEL || "gpt-4o";
 const hasApiKey = Boolean(process.env.OPENAI_API_KEY);
 
 const client = hasApiKey ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
@@ -56,17 +56,28 @@ app.post("/api/chat", async (req, res) => {
         content: message.content
       }));
 
-    const response = await client.responses.create({
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    const stream = await client.chat.completions.create({
       model,
-      reasoning: { effort: "low" },
-      instructions: candyInstructions,
-      input: safeMessages
+      messages: [
+        { role: "system", content: candyInstructions },
+        ...safeMessages
+      ],
+      stream: true
     });
 
-    return res.json({
-      reply: response.output_text?.trim() || "I am here and ready. Tell me what you want to explore next.",
-      model
-    });
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content;
+      if (delta) {
+        res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+      }
+    }
+
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    res.end();
   } catch (error) {
     const message =
       error?.status && error?.message
@@ -75,10 +86,15 @@ app.post("/api/chat", async (req, res) => {
           ? error.message
           : "Unknown server error";
 
-    return res.status(500).json({
-      error: "Candy could not reach the language model right now.",
-      detail: message
-    });
+    if (!res.headersSent) {
+      return res.status(500).json({
+        error: "Candy could not reach the language model right now.",
+        detail: message
+      });
+    }
+
+    res.write(`data: ${JSON.stringify({ error: message })}\n\n`);
+    res.end();
   }
 });
 
