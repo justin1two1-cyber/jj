@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { query } from "../db.mjs";
+import { query, getClient } from "../db.mjs";
 import { requireAuth, requireOwner } from "../middleware/auth.mjs";
 
 const router = Router();
@@ -41,46 +41,70 @@ router.get("/summary", requireAuth, async (req, res) => {
 router.post("/:id/promote", requireAuth, async (req, res) => {
   const { id } = req.params;
 
-  const sig = await query(`SELECT * FROM signals WHERE id = $1`, [id]);
-  if (!sig.rows[0]) return res.status(404).json({ error: "Signal not found" });
+  const client = await getClient();
+  try {
+    await client.query("BEGIN");
 
-  const signal = sig.rows[0];
+    // Lock the signal row to prevent concurrent double-promotion
+    const sig = await client.query(
+      `SELECT * FROM signals WHERE id = $1 FOR UPDATE`,
+      [id]
+    );
+    if (!sig.rows[0]) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Signal not found" });
+    }
+    const signal = sig.rows[0];
 
-  if (signal.commercial_intent_score < 0.5) {
-    return res.status(400).json({
-      error: "Signal commercial intent score too low to promote",
-      score: signal.commercial_intent_score,
-    });
+    if (signal.status !== "raw") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: `Signal already ${signal.status}` });
+    }
+
+    if (signal.commercial_intent_score < 0.5) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        error: "Signal commercial intent score too low to promote",
+        score: signal.commercial_intent_score,
+      });
+    }
+
+    const price = Number(signal.raw_price || 0);
+    let price_band = "over_1000";
+    if (price < 200) price_band = "under_200";
+    else if (price < 600) price_band = "band_200_600";
+    else if (price < 1000) price_band = "band_600_1000";
+
+    const candidate = await client.query(
+      `INSERT INTO candidates
+         (signal_id, user_id, title, description, image_url, category, price_band, viability_score)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        signal.id,
+        req.user.id,
+        signal.title,
+        signal.description,
+        signal.image_url,
+        signal.category,
+        price_band,
+        signal.commercial_intent_score,
+      ]
+    );
+
+    await client.query(
+      `UPDATE signals SET status = 'promoted', reviewed_at = NOW() WHERE id = $1`,
+      [id]
+    );
+
+    await client.query("COMMIT");
+    return res.status(201).json({ candidate: candidate.rows[0] });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
   }
-
-  // Determine price band
-  const price = Number(signal.raw_price || 0);
-  let price_band = "over_1000";
-  if (price < 200) price_band = "under_200";
-  else if (price < 600) price_band = "band_200_600";
-  else if (price < 1000) price_band = "band_600_1000";
-
-  const candidate = await query(
-    `INSERT INTO candidates
-       (signal_id, user_id, title, description, image_url, category, price_band, viability_score)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     ON CONFLICT DO NOTHING
-     RETURNING *`,
-    [
-      signal.id,
-      req.user.id,
-      signal.title,
-      signal.description,
-      signal.image_url,
-      signal.category,
-      price_band,
-      signal.commercial_intent_score,
-    ]
-  );
-
-  await query(`UPDATE signals SET status = 'promoted' WHERE id = $1`, [id]);
-
-  return res.status(201).json({ candidate: candidate.rows[0] });
 });
 
 // POST /api/signals/:id/reject — mark signal as rejected

@@ -37,33 +37,43 @@ async function runDiscoveryCycle() {
   ]);
 
   const allSignals = [...aliexpress, ...amazon, ...tiktok, ...ebay];
-  console.log(`[openclaw] Fetched ${allSignals.length} raw signals from ${4} sources`);
+  console.log(`[openclaw] Fetched ${allSignals.length} raw signals from 4 sources`);
 
   let inserted = 0;
   let filtered = 0;
   let duplicates = 0;
 
+  // Score and filter first
+  const viable = [];
   for (const signal of allSignals) {
-    if (signal._already_in_db) continue;
-
     const score = scoreCommercialIntent(signal);
     signal.commercial_intent_score = score;
+    if (!isCommerciallyViable(signal)) { filtered++; continue; }
+    viable.push(signal);
+  }
 
-    if (!isCommerciallyViable(signal)) {
-      filtered++;
-      continue;
+  // Batch dedup: one query per source instead of one per signal — O(sources) not O(signals)
+  const existingKeys = new Set();
+  const bySource = {};
+  for (const s of viable) {
+    if (s.source_product_id) {
+      (bySource[s.source] ??= []).push(s.source_product_id);
     }
+  }
+  for (const [src, ids] of Object.entries(bySource)) {
+    const rows = await pool.query(
+      `SELECT source_product_id FROM signals WHERE source = $1 AND source_product_id = ANY($2)`,
+      [src, ids]
+    );
+    for (const row of rows.rows) {
+      existingKeys.add(`${src}:${row.source_product_id}`);
+    }
+  }
 
-    // Check for duplicates by source + source_product_id
-    if (signal.source_product_id) {
-      const exists = await pool.query(
-        `SELECT id FROM signals WHERE source = $1 AND source_product_id = $2`,
-        [signal.source, signal.source_product_id]
-      );
-      if (exists.rows.length > 0) {
-        duplicates++;
-        continue;
-      }
+  for (const signal of viable) {
+    if (signal.source_product_id && existingKeys.has(`${signal.source}:${signal.source_product_id}`)) {
+      duplicates++;
+      continue;
     }
 
     try {
@@ -83,7 +93,7 @@ async function runDiscoveryCycle() {
           signal.currency || "USD",
           signal.category,
           signal.tags || [],
-          score,
+          signal.commercial_intent_score,
         ]
       );
       inserted++;
@@ -125,12 +135,22 @@ async function autoPromoteHighConfidence() {
     else if (price < 600) price_band = "band_200_600";
     else if (price < 1000) price_band = "band_600_1000";
 
+    const client = await pool.connect();
     try {
-      await pool.query(
+      await client.query("BEGIN");
+      // Re-check status under lock to prevent concurrent double-promotion
+      const locked = await client.query(
+        `SELECT status FROM signals WHERE id = $1 FOR UPDATE`,
+        [signal.id]
+      );
+      if (!locked.rows[0] || locked.rows[0].status !== "raw") {
+        await client.query("ROLLBACK");
+        continue;
+      }
+      await client.query(
         `INSERT INTO candidates
            (signal_id, user_id, title, description, image_url, category, price_band, viability_score)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-         ON CONFLICT DO NOTHING`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
         [
           signal.id,
           signal.owner_id,
@@ -142,8 +162,17 @@ async function autoPromoteHighConfidence() {
           signal.commercial_intent_score,
         ]
       );
-      await pool.query(`UPDATE signals SET status = 'promoted' WHERE id = $1`, [signal.id]);
-    } catch {}
+      await client.query(
+        `UPDATE signals SET status = 'promoted', reviewed_at = NOW() WHERE id = $1`,
+        [signal.id]
+      );
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error(`[openclaw] Auto-promote failed for signal ${signal.id}:`, err.message);
+    } finally {
+      client.release();
+    }
   }
 
   if (result.rows.length > 0) {

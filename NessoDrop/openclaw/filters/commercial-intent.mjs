@@ -24,6 +24,12 @@ const NON_PRODUCT_SIGNALS = [
   "earthquake", "hurricane", "flood", "breaking news", "report",
 ];
 
+// Word-boundary-aware match: prevents "purchase" matching "repurchase", etc.
+function hasPhrase(text, phrase) {
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:[^a-z0-9]|$)`).test(text);
+}
+
 export function scoreCommercialIntent(signal) {
   const text = `${signal.title || ""} ${signal.description || ""} ${signal.category || ""}`.toLowerCase();
 
@@ -34,7 +40,7 @@ export function scoreCommercialIntent(signal) {
 
   // Hard block on non-product language
   for (const term of NON_PRODUCT_SIGNALS) {
-    if (text.includes(term)) return 0.08;
+    if (hasPhrase(text, term)) return 0.08;
   }
 
   let score = 0.3; // base
@@ -42,7 +48,7 @@ export function scoreCommercialIntent(signal) {
   // Boost for product language
   let hits = 0;
   for (const term of PRODUCT_SIGNALS) {
-    if (text.includes(term)) hits++;
+    if (hasPhrase(text, term)) hits++;
   }
   score += Math.min(hits * 0.08, 0.4);
 

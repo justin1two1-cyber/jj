@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "./middleware/asyncErrors.mjs"; // patch Express 4 async error handling — must be first
 import express from "express";
 import authRoutes from "./routes/auth.mjs";
 import signalsRoutes from "./routes/signals.mjs";
@@ -21,9 +22,19 @@ app.use("/api/orders/webhook", express.raw({ type: "application/json" }), (req, 
 
 app.use(express.json({ limit: "4mb" }));
 
-// CORS — allow dashboard (3003) and owner-console (3010)
-app.use((_req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+// CORS — restrict to known origins; * is too broad for a credentialed API
+const ALLOWED_ORIGINS = new Set(
+  (process.env.CORS_ALLOWED_ORIGINS || "http://localhost:3003,http://localhost:3010")
+    .split(",")
+    .map((o) => o.trim())
+);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
   next();
@@ -46,10 +57,13 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "nessodrop-api", ts: new Date().toISOString() });
 });
 
-// Global error handler
+// Global error handler — never expose raw error messages in production
 app.use((err, _req, res, _next) => {
-  console.error("Unhandled error:", err.message);
-  res.status(500).json({ error: "Internal server error", detail: err.message });
+  const isProd = process.env.NODE_ENV === "production";
+  console.error("Unhandled error:", err.stack || err.message);
+  res.status(err.status || 500).json({
+    error: isProd ? "Internal server error" : (err.message || "Internal server error"),
+  });
 });
 
 app.listen(PORT, () => {

@@ -42,6 +42,7 @@ router.post("/", requireAuth, async (req, res) => {
 
   const stripe = getStripe();
   let paymentIntentId = null;
+  let clientSecret = null;
 
   if (stripe) {
     const intent = await stripe.paymentIntents.create({
@@ -50,6 +51,7 @@ router.post("/", requireAuth, async (req, res) => {
       metadata: { user_id: req.user.id, customer_email },
     });
     paymentIntentId = intent.id;
+    clientSecret = intent.client_secret; // capture here — no second API call needed
   }
 
   const client = await getClient();
@@ -86,7 +88,7 @@ router.post("/", requireAuth, async (req, res) => {
 
     return res.status(201).json({
       order_id: orderId,
-      payment_intent_client_secret: stripe ? (await getStripe().paymentIntents.retrieve(paymentIntentId)).client_secret : null,
+      payment_intent_client_secret: clientSecret,
       total_cents: totalCents,
     });
   } catch (err) {
@@ -114,20 +116,25 @@ router.post("/webhook", async (req, res) => {
 
   if (event.type === "payment_intent.succeeded") {
     const pi = event.data.object;
-    await query(
-      `UPDATE orders SET status = 'paid', updated_at = NOW()
-       WHERE stripe_payment_intent = $1`,
+
+    // Idempotency: only process if order is still pending — prevents replay double-dispatch
+    const orderRes = await query(
+      `SELECT id, status FROM orders WHERE stripe_payment_intent = $1`,
       [pi.id]
     );
-
-    // Queue supplier dispatch
-    const orderRes = await query(`SELECT id FROM orders WHERE stripe_payment_intent = $1`, [pi.id]);
-    if (orderRes.rows[0]) {
-      await query(
-        `INSERT INTO tasks (type, payload) VALUES ('dispatch_order', $1)`,
-        [JSON.stringify({ order_id: orderRes.rows[0].id })]
-      );
+    const order = orderRes.rows[0];
+    if (!order || order.status !== "pending") {
+      return res.json({ received: true });
     }
+
+    await query(
+      `UPDATE orders SET status = 'paid', updated_at = NOW() WHERE id = $1`,
+      [order.id]
+    );
+    await query(
+      `INSERT INTO tasks (type, payload) VALUES ('dispatch_order', $1)`,
+      [JSON.stringify({ order_id: order.id })]
+    );
   }
 
   return res.json({ received: true });

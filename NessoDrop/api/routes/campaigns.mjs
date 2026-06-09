@@ -87,7 +87,8 @@ router.post("/generate", requireAuth, async (req, res) => {
     return res.status(503).json({ error: "OPENAI_API_KEY not configured" });
   }
 
-  // Generate copy
+  // Generate copy — 25s timeout per call; 4 sequential calls = max ~100s total
+  const OAI_TIMEOUT = { timeout: 25000 };
   let copy;
   try {
     const resp = await openai.chat.completions.create({
@@ -95,7 +96,7 @@ router.post("/generate", requireAuth, async (req, res) => {
       messages: [{ role: "user", content: COPY_PROMPT(product) }],
       temperature: 0.7,
       response_format: { type: "json_object" },
-    });
+    }, OAI_TIMEOUT);
     copy = JSON.parse(resp.choices[0].message.content);
   } catch (err) {
     return res.status(500).json({ error: "Copy generation failed", detail: err.message });
@@ -110,38 +111,40 @@ router.post("/generate", requireAuth, async (req, res) => {
       messages: [{ role: "user", content: QUALITY_CHECK_PROMPT(copy) }],
       temperature: 0,
       response_format: { type: "json_object" },
-    });
+    }, OAI_TIMEOUT);
     const qResult = JSON.parse(qResp.choices[0].message.content);
     qualityScore = qResult.score || 0;
     qualityIssues = qResult.issues || [];
 
     if (qualityScore < 0.7) {
-      // One retry with stricter instruction
+      // Retry: user → assistant (original output) → user (feedback) — correct role alternation
       const retryResp = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           { role: "user", content: COPY_PROMPT(product) },
+          { role: "assistant", content: JSON.stringify(copy) },
           {
             role: "user",
-            content: `The previous attempt scored ${qualityScore.toFixed(2)}. Issues: ${qualityIssues.join("; ")}. Rewrite to fix all issues.`,
+            content: `Score: ${qualityScore.toFixed(2)}/1.0. Issues: ${qualityIssues.join("; ")}. Rewrite to fix all issues.`,
           },
         ],
         temperature: 0.6,
         response_format: { type: "json_object" },
-      });
+      }, OAI_TIMEOUT);
       copy = JSON.parse(retryResp.choices[0].message.content);
       const qResp2 = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: QUALITY_CHECK_PROMPT(copy) }],
         temperature: 0,
         response_format: { type: "json_object" },
-      });
+      }, OAI_TIMEOUT);
       const q2 = JSON.parse(qResp2.choices[0].message.content);
       qualityScore = q2.score || qualityScore;
       qualityIssues = q2.issues || [];
     }
-  } catch {
-    // Quality check non-fatal
+  } catch (err) {
+    console.error("[campaigns] Quality check failed:", err.message);
+    // Non-fatal — campaign proceeds with qualityScore = 0
   }
 
   const ctaUrl = store_url || `https://yourstore.com/products/${candidate_id}`;

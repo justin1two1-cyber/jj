@@ -67,10 +67,13 @@ async function handleDispatchOrder(payload) {
     [order_id]
   );
 
-  // Create billing record with real costs
-  const stripe_fee = Math.round((Number(
-    (await query(`SELECT COALESCE(SUM(unit_sale_price * qty),0) as t FROM order_items WHERE order_id=$1`, [order_id]))
-    .rows[0].t) * 0.029 + 0.30) * 100) / 100;
+  // Create billing record — Stripe fee calculated in integer cents to avoid float drift
+  const saleTotalRes = await query(
+    `SELECT COALESCE(SUM(unit_sale_price * qty), 0) as t FROM order_items WHERE order_id = $1`,
+    [order_id]
+  );
+  const saleCents = Math.round(Number(saleTotalRes.rows[0].t) * 100);
+  const stripe_fee = (Math.round(saleCents * 0.029) + 30) / 100;
 
   await query(
     `INSERT INTO billing_records
@@ -212,26 +215,39 @@ async function tick() {
   }
 }
 
-// Schedule nightly price optimizer
-function scheduleNightlyJobs() {
+// DB-idempotent nightly scheduler: inserts price_optimizer once per day at 3am.
+// Crash-safe — checks DB so restarts don't skip or double-schedule.
+async function maybeScheduleNightlyJobs() {
   const now = new Date();
-  const next = new Date();
-  next.setHours(3, 0, 0, 0);
-  if (next <= now) next.setDate(next.getDate() + 1);
-  const ms = next - now;
+  if (now.getHours() !== 3) return;
+  const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  const existing = await query(
+    `SELECT id FROM tasks WHERE type = 'price_optimizer' AND queued_at >= $1::timestamptz`,
+    [today]
+  );
+  if (existing.rows.length === 0) {
+    await query(`INSERT INTO tasks (type) VALUES ('price_optimizer')`);
+    console.log("[worker] Scheduled nightly price optimizer");
+  }
+}
 
-  setTimeout(async () => {
-    await query(
-      `INSERT INTO tasks (type) VALUES ('price_optimizer')`
-    );
-    setInterval(async () => {
-      await query(`INSERT INTO tasks (type) VALUES ('price_optimizer')`);
-    }, 24 * 60 * 60 * 1000);
-  }, ms);
+// Recursive setTimeout prevents concurrent overlapping ticks if processing takes > poll interval
+let _tickRunning = false;
+
+async function safeTick() {
+  if (!_tickRunning) {
+    _tickRunning = true;
+    try {
+      await tick();
+      await maybeScheduleNightlyJobs();
+    } catch (err) {
+      console.error("[worker] Tick error:", err.message);
+    } finally {
+      _tickRunning = false;
+    }
+  }
+  setTimeout(safeTick, POLL_INTERVAL_MS);
 }
 
 console.log("[worker] NessoDrop task worker starting...");
-scheduleNightlyJobs();
-
-setInterval(tick, POLL_INTERVAL_MS);
-tick();
+safeTick();

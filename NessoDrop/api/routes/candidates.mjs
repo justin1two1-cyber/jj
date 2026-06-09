@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { query } from "../db.mjs";
+import { query, getClient } from "../db.mjs";
 import { requireAuth, requireOwner } from "../middleware/auth.mjs";
 import { logAudit } from "../middleware/audit.mjs";
 
@@ -120,7 +120,7 @@ router.patch("/:id/choose-supplier", requireAuth, async (req, res) => {
   const { supplier_option_id } = req.body;
   if (!supplier_option_id) return res.status(400).json({ error: "supplier_option_id required" });
 
-  const client = await (await import("../db.mjs")).getClient();
+  const client = await getClient();
   try {
     await client.query("BEGIN");
     await client.query(

@@ -4,9 +4,10 @@ import { requireAuth, requireOwner } from "../middleware/auth.mjs";
 
 const router = Router();
 
-// Stripe fee formula: 2.9% + $0.30
-function calcStripeFee(amount) {
-  return Math.round((Number(amount) * 0.029 + 0.30) * 100) / 100;
+// Stripe fee: 2.9% + $0.30 — computed in integer cents to avoid float drift
+function calcStripeFee(amountDollars) {
+  const cents = Math.round(Number(amountDollars) * 100);
+  return (Math.round(cents * 0.029) + 30) / 100;
 }
 
 // POST /api/billing/record — create a complete billing record for an order
