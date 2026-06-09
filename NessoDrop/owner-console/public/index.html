@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nesso Drop — Owner Console</title>
+  <link rel="stylesheet" href="/css/owner.css">
+</head>
+<body data-view="overview">
+
+  <nav class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">N</span>
+      <div><span class="brand-name">Nesso Drop</span><br><span class="brand-role">Owner Console</span></div>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#" data-view="overview" class="active">Overview</a></li>
+      <li><a href="#" data-view="campaigns">Campaign Approvals</a></li>
+      <li><a href="#" data-view="candidates">Candidate Approvals</a></li>
+      <li><a href="#" data-view="billing">Billing</a></li>
+      <li><a href="#" data-view="users">Customers</a></li>
+      <li><a href="#" data-view="audit">Audit Log</a></li>
+      <li><a href="#" data-view="tasks">Task Queue</a></li>
+      <li><a href="#" data-view="integrations">Owner Integrations</a></li>
+    </ul>
+    <div class="sidebar-user">
+      <span id="user-email">Owner</span>
+      <button id="btn-logout" class="btn btn-ghost">Sign out</button>
+    </div>
+  </nav>
+
+  <main class="content">
+
+    <section id="view-overview" class="view">
+      <div class="view-header"><h1>Platform Overview</h1><button class="btn btn-ghost" onclick="loadOverview()">Refresh</button></div>
+      <div id="overview-grid"></div>
+    </section>
+
+    <section id="view-campaigns" class="view hidden">
+      <div class="view-header"><h1>Campaign Approvals</h1></div>
+      <p class="helper-text">Review and approve or reject AI-generated campaigns before they go live.</p>
+      <div id="campaigns-list"></div>
+    </section>
+
+    <section id="view-candidates" class="view hidden">
+      <div class="view-header"><h1>Candidate Approvals</h1></div>
+      <p class="helper-text">Approve candidates to make them available for suppliers and campaigns.</p>
+      <div id="candidates-list"></div>
+    </section>
+
+    <section id="view-billing" class="view hidden">
+      <div class="view-header"><h1>Platform Billing</h1></div>
+      <div id="billing-content"></div>
+    </section>
+
+    <section id="view-users" class="view hidden">
+      <div class="view-header"><h1>Customers</h1></div>
+      <div id="users-table-wrap"></div>
+    </section>
+
+    <section id="view-audit" class="view hidden">
+      <div class="view-header">
+        <h1>Audit Log</h1>
+        <div class="filter-row">
+          <input id="filter-action" placeholder="Filter by action..." class="filter-input">
+          <select id="filter-entity"><option value="">All entities</option><option>candidate</option><option>campaign</option><option>order</option><option>settings</option></select>
+        </div>
+      </div>
+      <div id="audit-table-wrap"></div>
+    </section>
+
+    <section id="view-tasks" class="view hidden">
+      <div class="view-header"><h1>Task Queue</h1></div>
+      <div id="tasks-table-wrap"></div>
+    </section>
+
+    <section id="view-integrations" class="view hidden">
+      <div class="view-header"><h1>Owner Integrations</h1></div>
+      <div id="owner-integrations-grid"></div>
+    </section>
+
+  </main>
+
+  <script src="/js/owner-api.js"></script>
+  <script src="/js/owner-app.js"></script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nesso Drop — Control Plane</title>
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body class="dark" data-view="signals">
+
+  <nav class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">N</span>
+      <span>Nesso Drop</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#" data-view="signals" class="active">
+        <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Signals
+      </a></li>
+      <li><a href="#" data-view="candidates">
+        <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 3H8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z"/></svg>
+        Products
+      </a></li>
+      <li><a href="#" data-view="suppliers">
+        <svg viewBox="0 0 24 24"><path d="M4 4h16v2H4zm0 4h16v2H4zm0 4h12v2H4zm0 4h10v2H4z"/></svg>
+        Suppliers
+      </a></li>
+      <li><a href="#" data-view="campaigns">
+        <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Campaigns
+      </a></li>
+      <li><a href="#" data-view="orders">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 001.99 1.61h9.72a2 2 0 001.99-1.61L23 6H6"/></svg>
+        Orders
+      </a></li>
+      <li><a href="#" data-view="financials">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        Financials
+      </a></li>
+      <li><a href="#" data-view="integrations">
+        <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+        Integrations
+      </a></li>
+    </ul>
+    <div class="sidebar-user" id="user-info">
+      <span id="user-email">Not signed in</span>
+      <button id="btn-logout" class="btn-ghost">Sign out</button>
+    </div>
+  </nav>
+
+  <main class="content">
+
+    <!-- ── Signals View ──────────────────────────────────────── -->
+    <section id="view-signals" class="view">
+      <div class="view-header">
+        <h1>Product Signals</h1>
+        <div class="lane-tabs">
+          <button class="lane-tab active" data-lane="raw">Discovery <span class="badge" id="count-raw">0</span></button>
+          <button class="lane-tab" data-lane="pending">Under Review <span class="badge" id="count-pending">0</span></button>
+          <button class="lane-tab" data-lane="promoted">Approved <span class="badge" id="count-promoted">0</span></button>
+        </div>
+      </div>
+      <div id="signals-grid" class="card-grid">
+        <div class="loading-state">Loading signals...</div>
+      </div>
+    </section>
+
+    <!-- ── Candidates View ───────────────────────────────────── -->
+    <section id="view-candidates" class="view hidden">
+      <div class="view-header">
+        <h1>Product Candidates</h1>
+        <div class="filter-row">
+          <select id="filter-price-band">
+            <option value="">All price bands</option>
+            <option value="under_200">Under $200</option>
+            <option value="band_200_600">$200–$600</option>
+            <option value="band_600_1000">$600–$1,000</option>
+            <option value="over_1000">$1,000+</option>
+          </select>
+          <select id="filter-intent">
+            <option value="">All intent categories</option>
+            <option value="most_purchased">Most Purchased</option>
+            <option value="most_viewed">Most Viewed</option>
+            <option value="best_reviewed">Best Reviewed</option>
+          </select>
+          <label class="toggle-label">
+            <input type="checkbox" id="toggle-top-only"> Top products only
+          </label>
+        </div>
+      </div>
+      <div id="candidates-grid" class="card-grid">
+        <div class="loading-state">Loading candidates...</div>
+      </div>
+    </section>
+
+    <!-- ── Suppliers View ────────────────────────────────────── -->
+    <section id="view-suppliers" class="view hidden">
+      <div class="view-header">
+        <h1>Supplier Comparison</h1>
+        <div class="view-tabs" id="supplier-view-tabs">
+          <button class="view-tab active" data-supplier-view="best_value">Best Value</button>
+          <button class="view-tab" data-supplier-view="cheapest">Cheapest</button>
+          <button class="view-tab" data-supplier-view="fastest">Fastest Delivery</button>
+        </div>
+      </div>
+      <p class="helper-text">Select a candidate to compare supplier options.</p>
+      <div id="suppliers-table-wrap"></div>
+    </section>
+
+    <!-- ── Campaigns View ────────────────────────────────────── -->
+    <section id="view-campaigns" class="view hidden">
+      <div class="view-header">
+        <h1>Campaigns</h1>
+        <div class="status-tabs">
+          <button class="status-tab active" data-status="">All</button>
+          <button class="status-tab" data-status="draft">Draft</button>
+          <button class="status-tab" data-status="pending_approval">Pending Approval</button>
+          <button class="status-tab" data-status="approved">Approved</button>
+          <button class="status-tab" data-status="live">Live</button>
+        </div>
+      </div>
+      <div id="campaigns-grid" class="card-grid">
+        <div class="loading-state">Loading campaigns...</div>
+      </div>
+    </section>
+
+    <!-- ── Orders View ───────────────────────────────────────── -->
+    <section id="view-orders" class="view hidden">
+      <div class="view-header"><h1>Orders</h1></div>
+      <div id="orders-table-wrap">
+        <table class="data-table">
+          <thead><tr>
+            <th>Order ID</th><th>Customer</th><th>Status</th>
+            <th>Items</th><th>Total</th><th>Created</th>
+          </tr></thead>
+          <tbody id="orders-tbody"><tr><td colspan="6" class="empty-state">Loading orders...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Financials View ───────────────────────────────────── -->
+    <section id="view-financials" class="view hidden">
+      <div class="view-header"><h1>Financials</h1></div>
+      <div class="stat-grid" id="financials-stats">
+        <div class="stat-card loading">Revenue<br><strong>—</strong></div>
+        <div class="stat-card loading">Net Profit<br><strong>—</strong></div>
+        <div class="stat-card loading">Orders<br><strong>—</strong></div>
+        <div class="stat-card loading">Supplier Cost<br><strong>—</strong></div>
+        <div class="stat-card loading">Ad Spend<br><strong>—</strong></div>
+        <div class="stat-card loading">Stripe Fees<br><strong>—</strong></div>
+      </div>
+      <div id="financials-warning" class="warning-banner hidden"></div>
+      <div id="monthly-chart" class="chart-wrap"></div>
+    </section>
+
+    <!-- ── Integrations View ─────────────────────────────────── -->
+    <section id="view-integrations" class="view hidden">
+      <div class="view-header"><h1>Integrations</h1></div>
+      <div id="integrations-grid" class="integrations-grid">
+        <div class="loading-state">Loading integrations...</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal" id="modal-box">
+      <button class="modal-close" id="modal-close">✕</button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/components.js"></script>
+  <script src="/js/views/signals.js"></script>
+  <script src="/js/views/candidates.js"></script>
+  <script src="/js/views/suppliers.js"></script>
+  <script src="/js/views/campaigns.js"></script>
+  <script src="/js/views/orders.js"></script>
+  <script src="/js/views/financials.js"></script>
+  <script src="/js/views/integrations.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

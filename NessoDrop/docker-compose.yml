@@ -1,0 +1,117 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nessodrop
+      POSTGRES_USER: nesso
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nessosecret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nesso -d nessodrop"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgres://nesso:${POSTGRES_PASSWORD:-nessosecret}@postgres:5432/nessodrop
+      REDIS_URL: redis://redis:6379
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      JWT_SECRET: ${JWT_SECRET:-changeme_in_prod}
+      HEYGEN_API_KEY: ${HEYGEN_API_KEY}
+      ALIEXPRESS_APP_KEY: ${ALIEXPRESS_APP_KEY}
+      ALIEXPRESS_APP_SECRET: ${ALIEXPRESS_APP_SECRET}
+      CJ_API_KEY: ${CJ_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  dashboard:
+    build: ./dashboard
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: 3003
+      API_URL: http://api:3001
+    depends_on:
+      - api
+
+  owner-console:
+    build: ./owner-console
+    restart: unless-stopped
+    ports:
+      - "3010:3010"
+    environment:
+      PORT: 3010
+      API_URL: http://api:3001
+    depends_on:
+      - api
+
+  openclaw:
+    build: ./openclaw
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://nesso:${POSTGRES_PASSWORD:-nessosecret}@postgres:5432/nessodrop
+      REDIS_URL: redis://redis:6379
+      API_URL: http://api:3001
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      RAINFOREST_API_KEY: ${RAINFOREST_API_KEY}
+      SERPAPI_KEY: ${SERPAPI_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./api
+    command: node worker.mjs
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://nesso:${POSTGRES_PASSWORD:-nessosecret}@postgres:5432/nessodrop
+      REDIS_URL: redis://redis:6379
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      HEYGEN_API_KEY: ${HEYGEN_API_KEY}
+      ALIEXPRESS_APP_KEY: ${ALIEXPRESS_APP_KEY}
+      ALIEXPRESS_APP_SECRET: ${ALIEXPRESS_APP_SECRET}
+      CJ_API_KEY: ${CJ_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
