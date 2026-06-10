@@ -54,6 +54,7 @@ async function runDiscoveryCycle() {
   let inserted = 0;
   let filtered = 0;
   let duplicates = 0;
+  let updated = 0;
 
   // Score and filter first
   const viable = [];
@@ -84,7 +85,35 @@ async function runDiscoveryCycle() {
 
   for (const signal of viable) {
     if (signal.source_product_id && existingKeys.has(`${signal.source}:${signal.source_product_id}`)) {
-      duplicates++;
+      // Re-scraped product: refresh price/sales metrics if they changed,
+      // so the dashboard always shows the latest scraped truth.
+      try {
+        const upd = await pool.query(
+          `UPDATE signals
+           SET raw_price    = COALESCE($3, raw_price),
+               sales_volume = COALESCE($4, sales_volume),
+               rating       = COALESCE($5, rating),
+               review_count = COALESCE($6, review_count)
+           WHERE source = $1 AND source_product_id = $2
+             AND (raw_price    IS DISTINCT FROM COALESCE($3, raw_price)
+               OR sales_volume IS DISTINCT FROM COALESCE($4, sales_volume)
+               OR rating       IS DISTINCT FROM COALESCE($5, rating)
+               OR review_count IS DISTINCT FROM COALESCE($6, review_count))`,
+          [
+            signal.source,
+            signal.source_product_id,
+            signal.raw_price ?? null,
+            signal.sales_volume ?? null,
+            signal.rating ?? null,
+            signal.review_count ?? null,
+          ]
+        );
+        if (upd.rowCount > 0) updated++;
+        else duplicates++;
+      } catch (err) {
+        console.error("[openclaw] Price update failed:", err.message);
+        duplicates++;
+      }
       continue;
     }
 
@@ -143,14 +172,23 @@ async function runDiscoveryCycle() {
 
   const duration = ((Date.now() - started) / 1000).toFixed(1);
   console.log(
-    `[openclaw] Cycle complete in ${duration}s — inserted: ${inserted}, filtered (non-commercial): ${filtered}, duplicates: ${duplicates}`
+    `[openclaw] Cycle complete in ${duration}s — inserted: ${inserted}, updated: ${updated}, filtered (non-commercial): ${filtered}, duplicates: ${duplicates}`
   );
 
-  // Log cycle result to audit
+  // Log cycle result to audit — per-source counts power the dashboard
+  // scraper-health panel (a source returning 0 usually means missing
+  // credentials or a broken template).
+  const sources = {
+    aliexpress: aliexpress.length,
+    amazon: amazon.length,
+    tiktok: tiktok.length,
+    ebay: ebay.length,
+    octoparse: octoparse.length,
+  };
   await pool.query(
     `INSERT INTO audit_log (action, entity_type, detail)
      VALUES ('discovery_cycle', 'signal', $1)`,
-    [JSON.stringify({ inserted, filtered, duplicates, duration_s: duration })]
+    [JSON.stringify({ inserted, updated, filtered, duplicates, duration_s: duration, sources })]
   );
 }
 

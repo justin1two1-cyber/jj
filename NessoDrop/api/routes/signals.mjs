@@ -29,6 +29,24 @@ router.get("/", requireAuth, async (req, res) => {
   return res.json({ signals: result.rows, page: Number(page), limit: Number(limit) });
 });
 
+// GET /api/signals/discovery-status — scraper health for the dashboard Home
+// panel: last runs with per-source counts, and a stale flag when the last
+// run is older than 14h (two 12h cycles should never be that far apart).
+router.get("/discovery-status", requireAuth, async (_req, res) => {
+  const result = await query(
+    `SELECT detail, created_at FROM audit_log
+     WHERE action = 'discovery_cycle'
+     ORDER BY created_at DESC LIMIT 5`
+  );
+
+  const runs = result.rows.map((r) => ({ ...r.detail, ran_at: r.created_at }));
+  const lastRun = runs[0] || null;
+  const STALE_MS = 14 * 60 * 60 * 1000;
+  const stale = !lastRun || (Date.now() - new Date(lastRun.ran_at).getTime()) > STALE_MS;
+
+  return res.json({ last_run: lastRun, recent_runs: runs, stale });
+});
+
 // GET /api/signals/summary — counts by status (for dashboard lanes)
 router.get("/summary", requireAuth, async (req, res) => {
   const result = await query(

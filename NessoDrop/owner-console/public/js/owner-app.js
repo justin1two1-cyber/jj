@@ -340,7 +340,7 @@ async function submitOctoparseImport() {
   out.textContent = "Importing…";
   try {
     const result = await OC.apiPost("/api/integrations/octoparse/import", { platform, purpose, format, data });
-    out.textContent = `Imported ${result.inserted} new (${result.duplicates} duplicates, ${result.skipped} unmappable)`;
+    out.textContent = `Imported ${result.inserted} new, ${result.updated || 0} price-updated (${result.duplicates} duplicates, ${result.skipped} unmappable)`;
     document.getElementById("octo-import-data").value = "";
   } catch (err) {
     out.textContent = `Failed: ${err.message}`;

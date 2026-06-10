@@ -201,17 +201,25 @@ router.post("/octoparse/import", requireAuth, requireOwner, async (req, res) => 
   const { signals, skipped } = mapRows(platform, rows);
 
   let inserted = 0;
+  let updated = 0;
   let duplicates = 0;
   for (const s of signals) {
     try {
+      // Upsert: re-imported products refresh their price/sales metrics
+      // (requires the unique index from migration 002)
       const result = await query(
         `INSERT INTO signals
            (source, source_product_id, title, description, image_url, source_url,
             raw_price, currency, category, tags, commercial_intent_score, status,
             sales_volume, rating, review_count)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'raw',$12,$13,$14)
-         ON CONFLICT DO NOTHING
-         RETURNING id`,
+         ON CONFLICT (source, source_product_id) WHERE source_product_id IS NOT NULL
+         DO UPDATE SET
+           raw_price    = COALESCE(EXCLUDED.raw_price, signals.raw_price),
+           sales_volume = COALESCE(EXCLUDED.sales_volume, signals.sales_volume),
+           rating       = COALESCE(EXCLUDED.rating, signals.rating),
+           review_count = COALESCE(EXCLUDED.review_count, signals.review_count)
+         RETURNING (xmax = 0) AS is_insert`,
         [
           s.source, s.source_product_id, s.title, s.description, s.image_url,
           s.source_url, s.raw_price, s.currency || "USD", s.category,
@@ -219,8 +227,8 @@ router.post("/octoparse/import", requireAuth, requireOwner, async (req, res) => 
           s.sales_volume, s.rating, s.review_count,
         ]
       );
-      if (result.rows[0]) inserted++;
-      else duplicates++;
+      if (result.rows[0]?.is_insert) inserted++;
+      else updated++;
     } catch (err) {
       if (err.code === "23505") duplicates++;
       else console.error("[integrations:octoparse] Insert failed:", err.message);
@@ -249,9 +257,9 @@ router.post("/octoparse/import", requireAuth, requireOwner, async (req, res) => 
   }
 
   await logAudit(req.user.id, "octoparse_import", "signal", null,
-    { platform, purpose, rows: rows.length, inserted, duplicates, skipped }, req.ip);
+    { platform, purpose, rows: rows.length, inserted, updated, duplicates, skipped }, req.ip);
 
-  return res.json({ ok: true, platform, purpose, rows: rows.length, inserted, duplicates, skipped });
+  return res.json({ ok: true, platform, purpose, rows: rows.length, inserted, updated, duplicates, skipped });
 });
 
 export default router;
