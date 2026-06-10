@@ -10,14 +10,13 @@ const API_URL = process.env.API_URL || "http://localhost:3001";
 
 app.use(express.static(path.join(__dirname, "public")));
 
-// Inject API_URL into HTML responses
-app.get("*", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-// Health check
+// Health check — must be before the wildcard catch-all
 app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "nessodrop-dashboard", api_url: API_URL });
+});
+
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 app.listen(PORT, () => {

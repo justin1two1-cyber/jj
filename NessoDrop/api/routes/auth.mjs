@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { query } from "../db.mjs";
-import { signToken } from "../middleware/auth.mjs";
+import { signToken, requireAuth } from "../middleware/auth.mjs";
 
 const router = Router();
 
@@ -41,6 +41,16 @@ router.post("/login", async (req, res) => {
   }
   const { password_hash, ...safe } = user;
   return res.json({ token: signToken(safe), user: safe });
+});
+
+// GET /api/auth/me — return current user from token
+router.get("/me", requireAuth, async (req, res) => {
+  const result = await query(
+    `SELECT id, email, name, role, store_url FROM users WHERE id = $1`,
+    [req.user.id]
+  );
+  if (!result.rows[0]) return res.status(404).json({ error: "User not found" });
+  return res.json(result.rows[0]);
 });
 
 export default router;

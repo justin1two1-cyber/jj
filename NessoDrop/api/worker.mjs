@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { query, getClient } from "./db.mjs";
+import { calcStripeFeeDollars } from "./lib/pricing.mjs";
 
 const POLL_INTERVAL_MS = 5000;
 const MAX_ATTEMPTS = 3;
@@ -72,8 +73,7 @@ async function handleDispatchOrder(payload) {
     `SELECT COALESCE(SUM(unit_sale_price * qty), 0) as t FROM order_items WHERE order_id = $1`,
     [order_id]
   );
-  const saleCents = Math.round(Number(saleTotalRes.rows[0].t) * 100);
-  const stripe_fee = (Math.round(saleCents * 0.029) + 30) / 100;
+  const stripe_fee = calcStripeFeeDollars(saleTotalRes.rows[0].t);
 
   await query(
     `INSERT INTO billing_records
@@ -102,6 +102,95 @@ async function handleSupplierSync(payload) {
     [candidateId]
   );
   console.log(`[worker] Supplier sync complete for ${candidateId}`);
+}
+
+// ── Octoparse supplier matching ──
+// Scraped supplier-price rows (e.g. AliExpress) are matched to existing
+// candidates by normalised-title token overlap. Matches upsert a real-cost
+// supplier_options row — replacing heuristic price estimates with scraped truth.
+
+function normaliseTitle(title) {
+  return String(title || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2); // drop stopword-length tokens
+}
+
+function titleSimilarity(tokensA, tokensB) {
+  if (!tokensA.length || !tokensB.length) return 0;
+  const setB = new Set(tokensB);
+  const overlap = tokensA.filter((t) => setB.has(t)).length;
+  return overlap / Math.min(tokensA.length, tokensB.length);
+}
+
+const SUPPLIER_MATCH_THRESHOLD = 0.6;
+
+async function handleOctoparseSupplierMatch(payload) {
+  const { items } = payload;
+  if (!items?.length) return;
+
+  const candidatesRes = await query(
+    `SELECT id, title FROM candidates WHERE status IN ('pending', 'approved', 'live')`
+  );
+  const candidates = candidatesRes.rows.map((c) => ({
+    id: c.id,
+    tokens: normaliseTitle(c.title),
+  }));
+
+  let matched = 0;
+  for (const item of items) {
+    if (!item.cost_price || !item.title) continue;
+    const itemTokens = normaliseTitle(item.title);
+
+    let best = null;
+    let bestScore = 0;
+    for (const cand of candidates) {
+      const score = titleSimilarity(itemTokens, cand.tokens);
+      if (score > bestScore) { bestScore = score; best = cand; }
+    }
+    if (!best || bestScore < SUPPLIER_MATCH_THRESHOLD) continue;
+
+    // Upsert: update existing scraped option for this candidate+platform+product,
+    // otherwise insert a new supplier option with the real scraped cost
+    const existing = await query(
+      `SELECT id FROM supplier_options
+       WHERE candidate_id = $1 AND platform = $2
+         AND (supplier_product_id = $3 OR product_url = $4)
+       LIMIT 1`,
+      [best.id, item.platform, item.supplier_product_id, item.product_url]
+    );
+
+    if (existing.rows[0]) {
+      await query(
+        `UPDATE supplier_options
+         SET cost_price = $2, rating = COALESCE($3, rating),
+             review_count = COALESCE($4, review_count), last_synced = NOW()
+         WHERE id = $1`,
+        [existing.rows[0].id, item.cost_price, item.rating, item.review_count]
+      );
+    } else {
+      await query(
+        `INSERT INTO supplier_options
+           (candidate_id, platform, supplier_name, product_url, supplier_product_id,
+            cost_price, shipping_cost, rating, review_count, last_synced)
+         VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $8, NOW())`,
+        [
+          best.id,
+          item.platform,
+          `${item.platform} (scraped)`,
+          item.product_url,
+          item.supplier_product_id,
+          item.cost_price,
+          item.rating,
+          item.review_count,
+        ]
+      );
+    }
+    matched++;
+  }
+
+  console.log(`[worker] Octoparse supplier match: ${matched}/${items.length} scraped prices matched to candidates`);
 }
 
 async function handleGenerateVideo(payload) {
@@ -192,6 +281,7 @@ const handlers = {
   supplier_sync: handleSupplierSync,
   generate_video: handleGenerateVideo,
   price_optimizer: handlePriceOptimizer,
+  octoparse_supplier_match: handleOctoparseSupplierMatch,
 };
 
 async function tick() {

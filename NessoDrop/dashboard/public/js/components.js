@@ -43,8 +43,22 @@ function signalCard(signal) {
                  <p class="card-price-note">Source price</p>`;
   }
 
+  // Sales evidence — scraped sold counts and ratings ("how much it's selling")
+  function fmtVolume(n) {
+    n = Number(n);
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+    if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "k";
+    return String(n);
+  }
+  let salesHtml = "";
+  const salesBits = [];
+  if (signal.sales_volume > 0) salesBits.push(`<strong>${fmtVolume(signal.sales_volume)}</strong> sold`);
+  if (signal.rating > 0) salesBits.push(`★ ${Number(signal.rating).toFixed(1)}`);
+  if (signal.review_count > 0) salesBits.push(`${fmtVolume(signal.review_count)} reviews`);
+  if (salesBits.length) salesHtml = `<p class="card-score sales-evidence">${salesBits.join(" · ")}</p>`;
+
   // Relevance score tooltip
-  const scoreTitle = "Relevance score: 0–100% based on commercial keywords, price data, and source. Below 50% = non-sellable content filtered out.";
+  const scoreTitle = "Relevance score: 0–100% based on commercial keywords, price data, sales volume, and source. Below 50% = non-sellable content filtered out.";
 
   return `
     <div class="card signal-card" style="position:relative">
@@ -54,6 +68,7 @@ function signalCard(signal) {
         <p class="card-source">${(signal.source || "").replace(/_/g, " ")}</p>
         <h3 class="card-title">${signal.title}</h3>
         ${priceHtml}
+        ${salesHtml}
         <p class="card-score" title="${scoreTitle}">
           Relevance: <span class="score-${scoreColor}">${score}%</span>
         </p>

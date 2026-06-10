@@ -1,6 +1,7 @@
 import "dotenv/config";
 import "./middleware/asyncErrors.mjs"; // patch Express 4 async error handling — must be first
 import express from "express";
+import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/auth.mjs";
 import signalsRoutes from "./routes/signals.mjs";
 import candidatesRoutes from "./routes/candidates.mjs";
@@ -40,6 +41,25 @@ app.use((req, res, next) => {
   next();
 });
 app.options("*", (_req, res) => res.sendStatus(204));
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests — try again later" },
+});
+const campaignLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Campaign generation rate limit exceeded" },
+});
+
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
+app.use("/api/campaigns/generate", campaignLimiter);
 
 // Routes
 app.use("/api/auth", authRoutes);

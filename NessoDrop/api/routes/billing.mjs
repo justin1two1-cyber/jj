@@ -1,14 +1,9 @@
 import { Router } from "express";
 import { query } from "../db.mjs";
 import { requireAuth, requireOwner } from "../middleware/auth.mjs";
+import { calcStripeFeeDollars } from "../lib/pricing.mjs";
 
 const router = Router();
-
-// Stripe fee: 2.9% + $0.30 — computed in integer cents to avoid float drift
-function calcStripeFee(amountDollars) {
-  const cents = Math.round(Number(amountDollars) * 100);
-  return (Math.round(cents * 0.029) + 30) / 100;
-}
 
 // POST /api/billing/record — create a complete billing record for an order
 // Called by the order dispatch worker after supplier cost is confirmed
@@ -31,7 +26,7 @@ router.post("/record", requireAuth, async (req, res) => {
   if (!orderRes.rows[0]) return res.status(404).json({ error: "Order not found" });
 
   const { sale_total, user_id } = orderRes.rows[0];
-  const stripe_fee = calcStripeFee(sale_total);
+  const stripe_fee = calcStripeFeeDollars(sale_total);
 
   const result = await query(
     `INSERT INTO billing_records

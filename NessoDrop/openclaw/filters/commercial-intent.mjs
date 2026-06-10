@@ -55,10 +55,17 @@ export function scoreCommercialIntent(signal) {
   // Boost if price data present
   if (signal.raw_price && Number(signal.raw_price) > 0) score += 0.15;
 
-  // Boost for commerce-native sources
-  if (["aliexpress_bsr", "amazon_movers", "tiktok_shop", "ebay_sold", "cj_trending"].includes(signal.source)) {
+  // Boost for commerce-native sources (scraped product listings are products by construction)
+  const COMMERCE_SOURCES = [
+    "aliexpress_bsr", "amazon_movers", "tiktok_shop", "ebay_sold", "cj_trending",
+    "octoparse_aliexpress", "octoparse_ebay", "octoparse_etsy", "octoparse_tiktok", "octoparse_amazon",
+  ];
+  if (COMMERCE_SOURCES.includes(signal.source)) {
     score += 0.2;
   }
+
+  // Proof of actual sales — the strongest commercial evidence available
+  if (signal.sales_volume && Number(signal.sales_volume) > 0) score += 0.15;
 
   return Math.min(Math.round(score * 1000) / 1000, 1.0);
 }

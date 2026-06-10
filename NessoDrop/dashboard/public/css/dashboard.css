@@ -337,6 +337,8 @@ body {
 .card-price { font-size: 15px; font-weight: 700; color: var(--green); margin-bottom: 4px; }
 .card-price-note { font-size: 10px; color: var(--text-muted); margin-bottom: 6px; }
 .card-score { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+.sales-evidence { color: var(--green); }
+.sales-evidence strong { font-weight: 800; }
 .card-meta-row { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
 .card-price-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; margin-bottom: 10px; }
 .sale-price { font-size: 15px; font-weight: 700; color: var(--green); }

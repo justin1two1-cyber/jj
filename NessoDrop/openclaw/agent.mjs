@@ -6,6 +6,7 @@ import { fetchSignals as fetchAmazon } from "./sources/amazon.mjs";
 import { fetchSignals as fetchTikTok } from "./sources/tiktok.mjs";
 import { fetchSignals as fetchEbay } from "./sources/ebay.mjs";
 import { fetchSignals as fetchManual } from "./sources/manual.mjs";
+import { fetchSignals as fetchOctoparse } from "./sources/octoparse.mjs";
 
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -22,22 +23,33 @@ async function runDiscoveryCycle() {
      ) AND key IN (
        'aliexpress_app_key','aliexpress_app_secret',
        'tiktok_client_key','tiktok_access_token',
-       'supplier_api_key'
+       'supplier_api_key',
+       'ebay_client_id','ebay_client_secret',
+       'octoparse_username','octoparse_password','octoparse_tasks'
      )`
   );
   const creds = Object.fromEntries(credResult.rows.map((r) => [r.key, r.value]));
 
   // Fetch from all sources in parallel
-  const [aliexpress, amazon, tiktok, ebay, manual] = await Promise.all([
+  const [aliexpress, amazon, tiktok, ebay, manual, octoparse] = await Promise.all([
     fetchAliexpress({ appKey: creds.aliexpress_app_key, appSecret: creds.aliexpress_app_secret }),
     fetchAmazon({ apiKey: process.env.RAINFOREST_API_KEY }),
     fetchTikTok({ accessToken: creds.tiktok_access_token, clientKey: creds.tiktok_client_key }),
-    fetchEbay({ serpApiKey: process.env.SERPAPI_KEY }),
+    fetchEbay({
+      ebayClientId: creds.ebay_client_id || process.env.EBAY_CLIENT_ID,
+      ebayClientSecret: creds.ebay_client_secret || process.env.EBAY_CLIENT_SECRET,
+      serpApiKey: process.env.SERPAPI_KEY,
+    }),
     fetchManual({ db: pool }),
+    fetchOctoparse({
+      username: creds.octoparse_username,
+      password: creds.octoparse_password,
+      tasks: creds.octoparse_tasks,
+    }),
   ]);
 
-  const allSignals = [...aliexpress, ...amazon, ...tiktok, ...ebay];
-  console.log(`[openclaw] Fetched ${allSignals.length} raw signals from 4 sources`);
+  const allSignals = [...aliexpress, ...amazon, ...tiktok, ...ebay, ...octoparse];
+  console.log(`[openclaw] Fetched ${allSignals.length} raw signals from 5 source families`);
 
   let inserted = 0;
   let filtered = 0;
@@ -80,8 +92,9 @@ async function runDiscoveryCycle() {
       await pool.query(
         `INSERT INTO signals
            (source, source_product_id, title, description, image_url, source_url,
-            raw_price, currency, category, tags, commercial_intent_score, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'raw')`,
+            raw_price, currency, category, tags, commercial_intent_score, status,
+            sales_volume, rating, review_count)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'raw',$12,$13,$14)`,
         [
           signal.source,
           signal.source_product_id,
@@ -94,6 +107,9 @@ async function runDiscoveryCycle() {
           signal.category,
           signal.tags || [],
           signal.commercial_intent_score,
+          signal.sales_volume ?? null,
+          signal.rating ?? null,
+          signal.review_count ?? null,
         ]
       );
       inserted++;
@@ -102,6 +118,27 @@ async function runDiscoveryCycle() {
         console.error("[openclaw] Insert failed:", err.message);
       }
     }
+  }
+
+  // Octoparse supplier-price rows: queue candidate matching so real supplier
+  // costs flow into supplier_options (worker task: octoparse_supplier_match)
+  const supplierRows = allSignals.filter((s) => s._purpose === "supplier_prices" && s.title && s.raw_price);
+  if (supplierRows.length > 0) {
+    await pool.query(
+      `INSERT INTO tasks (type, payload) VALUES ('octoparse_supplier_match', $1)`,
+      [JSON.stringify({
+        items: supplierRows.map((s) => ({
+          title: s.title,
+          cost_price: s.raw_price,
+          product_url: s.source_url,
+          supplier_product_id: s.source_product_id,
+          rating: s.rating,
+          review_count: s.review_count,
+          platform: s.source.replace("octoparse_", ""),
+        })),
+      })]
+    );
+    console.log(`[openclaw] Queued supplier matching for ${supplierRows.length} scraped supplier prices`);
   }
 
   const duration = ((Date.now() - started) / 1000).toFixed(1);

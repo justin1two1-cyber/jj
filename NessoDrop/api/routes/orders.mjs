@@ -6,9 +6,11 @@ import { logAudit } from "../middleware/audit.mjs";
 
 const router = Router();
 
+let _stripe = null;
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) return null;
-  return new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-11-20.acacia" });
+  if (!_stripe) _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-11-20.acacia" });
+  return _stripe;
 }
 
 // POST /api/orders — create order + Stripe PaymentIntent
@@ -18,18 +20,27 @@ router.post("/", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "items and customer_email required" });
   }
 
-  // Fetch candidate + chosen supplier for each item
+  for (const item of items) {
+    if (!Number.isInteger(item.qty) || item.qty < 1) {
+      return res.status(400).json({ error: `Invalid qty for candidate ${item.candidate_id}` });
+    }
+  }
+
+  // Batch fetch all candidates + chosen suppliers in one query
+  const candidateIds = items.map((i) => i.candidate_id);
+  const r = await query(
+    `SELECT c.*, so.cost_price, so.shipping_cost, so.landed_cost, so.id as supplier_option_id
+     FROM candidates c
+     LEFT JOIN supplier_options so ON so.candidate_id = c.id AND so.is_chosen = true
+     WHERE c.id = ANY($1)`,
+    [candidateIds]
+  );
+  const productMap = new Map(r.rows.map((row) => [row.id, row]));
+
   const enriched = [];
   for (const item of items) {
-    const r = await query(
-      `SELECT c.*, so.cost_price, so.shipping_cost, so.landed_cost, so.id as supplier_option_id
-       FROM candidates c
-       LEFT JOIN supplier_options so ON so.candidate_id = c.id AND so.is_chosen = true
-       WHERE c.id = $1`,
-      [item.candidate_id]
-    );
-    if (!r.rows[0]) return res.status(400).json({ error: `Candidate ${item.candidate_id} not found` });
-    const product = r.rows[0];
+    const product = productMap.get(item.candidate_id);
+    if (!product) return res.status(400).json({ error: `Candidate ${item.candidate_id} not found` });
     if (!product.supplier_option_id) {
       return res.status(400).json({ error: `No supplier chosen for product: ${product.title}` });
     }

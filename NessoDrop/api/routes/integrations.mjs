@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { query } from "../db.mjs";
-import { requireAuth } from "../middleware/auth.mjs";
+import { requireAuth, requireOwner } from "../middleware/auth.mjs";
 import { logAudit } from "../middleware/audit.mjs";
+import { mapRows, parseCsv, OCTOPARSE_PLATFORMS } from "../lib/octoparse-mappers.mjs";
 
 const router = Router();
 
@@ -48,6 +49,16 @@ const INTEGRATION_KEYS = [
 ];
 
 const OWNER_ONLY_KEYS = [
+  // Octoparse cloud scraping (Standard plan API; free plan uses manual import)
+  "octoparse_username",
+  "octoparse_password",
+  "octoparse_tasks",
+  // eBay official Developer API (free tier — developer.ebay.com)
+  "ebay_client_id",
+  "ebay_client_secret",
+  // AliExpress Affiliate API (free — portals.aliexpress.com)
+  "aliexpress_app_key",
+  "aliexpress_app_secret",
   "owner_stripe_account_id",
   "owner_stripe_secret_key",
   "owner_stripe_webhook_secret",
@@ -162,6 +173,85 @@ router.get("/test/:key", requireAuth, async (req, res) => {
   } catch (err) {
     return res.json({ ok: false, message: err.message });
   }
+});
+
+// POST /api/integrations/octoparse/import — manual Octoparse export import.
+// Free-plan path: export from Octoparse (CSV or JSON), upload here with the
+// platform name. Same field mappers as the automated API connector.
+// Body: { platform: "aliexpress"|"ebay"|"etsy"|"tiktok"|"amazon",
+//         format: "json"|"csv", data: <JSON array or CSV string>,
+//         purpose?: "signals"|"supplier_prices" }
+router.post("/octoparse/import", requireAuth, requireOwner, async (req, res) => {
+  const { platform, format = "json", data, purpose = "signals" } = req.body;
+
+  if (!OCTOPARSE_PLATFORMS.includes(platform)) {
+    return res.status(400).json({ error: `platform must be one of: ${OCTOPARSE_PLATFORMS.join(", ")}` });
+  }
+  if (!data) return res.status(400).json({ error: "data required (JSON array or CSV string)" });
+
+  let rows;
+  if (format === "csv") {
+    if (typeof data !== "string") return res.status(400).json({ error: "CSV data must be a string" });
+    rows = parseCsv(data);
+  } else {
+    rows = Array.isArray(data) ? data : null;
+  }
+  if (!rows?.length) return res.status(400).json({ error: "No rows found in data" });
+
+  const { signals, skipped } = mapRows(platform, rows);
+
+  let inserted = 0;
+  let duplicates = 0;
+  for (const s of signals) {
+    try {
+      const result = await query(
+        `INSERT INTO signals
+           (source, source_product_id, title, description, image_url, source_url,
+            raw_price, currency, category, tags, commercial_intent_score, status,
+            sales_volume, rating, review_count)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'raw',$12,$13,$14)
+         ON CONFLICT DO NOTHING
+         RETURNING id`,
+        [
+          s.source, s.source_product_id, s.title, s.description, s.image_url,
+          s.source_url, s.raw_price, s.currency || "USD", s.category,
+          s.tags || [], 0.7, // imported product listings are commerce by construction
+          s.sales_volume, s.rating, s.review_count,
+        ]
+      );
+      if (result.rows[0]) inserted++;
+      else duplicates++;
+    } catch (err) {
+      if (err.code === "23505") duplicates++;
+      else console.error("[integrations:octoparse] Insert failed:", err.message);
+    }
+  }
+
+  // Supplier-price imports also queue candidate matching (real costs → supplier_options)
+  if (purpose === "supplier_prices") {
+    const items = signals
+      .filter((s) => s.title && s.raw_price)
+      .map((s) => ({
+        title: s.title,
+        cost_price: s.raw_price,
+        product_url: s.source_url,
+        supplier_product_id: s.source_product_id,
+        rating: s.rating,
+        review_count: s.review_count,
+        platform,
+      }));
+    if (items.length) {
+      await query(
+        `INSERT INTO tasks (type, payload) VALUES ('octoparse_supplier_match', $1)`,
+        [JSON.stringify({ items })]
+      );
+    }
+  }
+
+  await logAudit(req.user.id, "octoparse_import", "signal", null,
+    { platform, purpose, rows: rows.length, inserted, duplicates, skipped }, req.ip);
+
+  return res.json({ ok: true, platform, purpose, rows: rows.length, inserted, duplicates, skipped });
 });
 
 export default router;

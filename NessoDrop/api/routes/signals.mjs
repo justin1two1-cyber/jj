@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { query, getClient } from "../db.mjs";
 import { requireAuth, requireOwner } from "../middleware/auth.mjs";
+import { priceBandFromRaw } from "../lib/pricing.mjs";
 
 const router = Router();
 
@@ -69,11 +70,7 @@ router.post("/:id/promote", requireAuth, async (req, res) => {
       });
     }
 
-    const price = Number(signal.raw_price || 0);
-    let price_band = "over_1000";
-    if (price < 200) price_band = "under_200";
-    else if (price < 600) price_band = "band_200_600";
-    else if (price < 1000) price_band = "band_600_1000";
+    const price_band = priceBandFromRaw(signal.raw_price);
 
     const candidate = await client.query(
       `INSERT INTO candidates

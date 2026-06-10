@@ -245,6 +245,16 @@ async function loadTasks() {
 async function loadOwnerIntegrations() {
   const grid = document.getElementById("owner-integrations-grid");
   const OWNER_FIELDS = [
+    // Octoparse cloud scraping (free plan: leave blank, use Import button below)
+    { key: "octoparse_username", label: "Octoparse Username" },
+    { key: "octoparse_password", label: "Octoparse Password", secret: true },
+    { key: "octoparse_tasks", label: "Octoparse Tasks (JSON: [{task_id, platform, purpose}])" },
+    // eBay official Developer API — free at developer.ebay.com
+    { key: "ebay_client_id", label: "eBay Client ID (free dev account)" },
+    { key: "ebay_client_secret", label: "eBay Client Secret", secret: true },
+    // AliExpress Affiliate API — free at portals.aliexpress.com
+    { key: "aliexpress_app_key", label: "AliExpress App Key (free affiliate)" },
+    { key: "aliexpress_app_secret", label: "AliExpress App Secret", secret: true },
     { key: "owner_stripe_account_id", label: "Owner Stripe Account ID" },
     { key: "owner_stripe_secret_key", label: "Owner Stripe Secret Key", secret: true },
     { key: "owner_stripe_webhook_secret", label: "Owner Stripe Webhook Secret", secret: true },
@@ -258,7 +268,7 @@ async function loadOwnerIntegrations() {
 
   try {
     const data = await OC.apiGet("/api/integrations");
-    grid.innerHTML = OWNER_FIELDS.map((f) => {
+    const rows = OWNER_FIELDS.map((f) => {
       const status = data[f.key];
       return `
         <div class="integration-row">
@@ -274,8 +284,66 @@ async function loadOwnerIntegrations() {
           </div>
         </div>`;
     }).join("");
+
+    // Manual Octoparse import — works on the free Octoparse plan
+    const importPanel = `
+      <div class="integration-row" style="display:block; padding-top:16px;">
+        <div class="integration-info" style="margin-bottom:10px;">
+          <span class="integration-label">Octoparse Manual Import (free plan)</span>
+          <span class="integration-preview">Export from Octoparse as CSV or JSON, paste below</span>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+          <select id="octo-import-platform">
+            <option value="aliexpress">AliExpress</option>
+            <option value="ebay">eBay</option>
+            <option value="etsy">Etsy</option>
+            <option value="tiktok">TikTok</option>
+            <option value="amazon">Amazon</option>
+          </select>
+          <select id="octo-import-purpose">
+            <option value="signals">Discovery signals</option>
+            <option value="supplier_prices">Supplier prices (AliExpress costs)</option>
+          </select>
+          <select id="octo-import-format">
+            <option value="csv">CSV</option>
+            <option value="json">JSON</option>
+          </select>
+        </div>
+        <textarea id="octo-import-data" rows="6" style="width:100%;" placeholder="Paste exported CSV or JSON array here"></textarea>
+        <div style="margin-top:8px;">
+          <button class="btn btn-primary btn-sm" onclick="submitOctoparseImport()">Import</button>
+          <span id="octo-import-result" class="integration-preview" style="margin-left:10px;"></span>
+        </div>
+      </div>`;
+
+    grid.innerHTML = rows + importPanel;
   } catch (err) {
     grid.innerHTML = `<p class="text-red">${err.message}</p>`;
+  }
+}
+
+async function submitOctoparseImport() {
+  const platform = document.getElementById("octo-import-platform").value;
+  const purpose = document.getElementById("octo-import-purpose").value;
+  const format = document.getElementById("octo-import-format").value;
+  const raw = document.getElementById("octo-import-data").value.trim();
+  const out = document.getElementById("octo-import-result");
+
+  if (!raw) { out.textContent = "Nothing to import"; return; }
+
+  let data = raw;
+  if (format === "json") {
+    try { data = JSON.parse(raw); }
+    catch { out.textContent = "Invalid JSON"; return; }
+  }
+
+  out.textContent = "Importing…";
+  try {
+    const result = await OC.apiPost("/api/integrations/octoparse/import", { platform, purpose, format, data });
+    out.textContent = `Imported ${result.inserted} new (${result.duplicates} duplicates, ${result.skipped} unmappable)`;
+    document.getElementById("octo-import-data").value = "";
+  } catch (err) {
+    out.textContent = `Failed: ${err.message}`;
   }
 }
 
@@ -354,3 +422,4 @@ window.approveCandidate = approveCandidate;
 window.rejectCandidate = rejectCandidate;
 window.loadOverview = loadOverview;
 window.editOwnerIntegration = editOwnerIntegration;
+window.submitOctoparseImport = submitOctoparseImport;
