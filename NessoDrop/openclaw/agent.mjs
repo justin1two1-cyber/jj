@@ -181,11 +181,48 @@ async function autoPromoteHighConfidence() {
 }
 
 // ─── Schedule ─────────────────────────────────────────────────────────────
+// Runs at 08:00 and 20:00 daily. On startup, runs immediately once,
+// then schedules the next 8 AM or 8 PM run.
 
-const CYCLE_INTERVAL_MS = 2 * 60 * 60 * 1000; // every 2 hours
+function msUntilNextRun() {
+  const now = new Date();
+  const h = now.getHours();
+  const next = new Date(now);
+  next.setSeconds(0);
+  next.setMilliseconds(0);
+  next.setMinutes(0);
+
+  if (h < 8) {
+    next.setHours(8);
+  } else if (h < 20) {
+    next.setHours(20);
+  } else {
+    next.setDate(next.getDate() + 1);
+    next.setHours(8);
+  }
+
+  return next.getTime() - now.getTime();
+}
+
+function scheduleNext() {
+  const delayMs = msUntilNextRun();
+  const nextRun = new Date(Date.now() + delayMs);
+  console.log(
+    `[openclaw] Next discovery run: ${nextRun.toLocaleTimeString()} on ${nextRun.toLocaleDateString()} (in ${Math.round(delayMs / 60000)} min)`
+  );
+  setTimeout(async () => {
+    try {
+      await runDiscoveryCycle();
+      await autoPromoteHighConfidence();
+    } catch (err) {
+      console.error("[openclaw] Scheduled cycle failed:", err.message);
+    }
+    scheduleNext();
+  }, delayMs);
+}
 
 async function main() {
-  console.log("[openclaw] OpenClaw discovery agent starting");
+  console.log("[openclaw] OpenClaw discovery agent starting — scheduled at 08:00 and 20:00 daily");
 
   try {
     await runDiscoveryCycle();
@@ -194,14 +231,7 @@ async function main() {
     console.error("[openclaw] Startup cycle failed:", err.message);
   }
 
-  setInterval(async () => {
-    try {
-      await runDiscoveryCycle();
-      await autoPromoteHighConfidence();
-    } catch (err) {
-      console.error("[openclaw] Scheduled cycle failed:", err.message);
-    }
-  }, CYCLE_INTERVAL_MS);
+  scheduleNext();
 }
 
 main();

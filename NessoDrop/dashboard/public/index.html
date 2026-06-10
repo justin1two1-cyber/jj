@@ -6,15 +6,33 @@
   <title>Nesso Drop — Control Plane</title>
   <link rel="stylesheet" href="/css/dashboard.css">
 </head>
-<body class="dark" data-view="signals">
+<body class="dark" data-view="home">
 
   <nav class="sidebar">
     <div class="brand">
-      <span class="brand-mark">N</span>
-      <span>Nesso Drop</span>
+      <div class="brand-logo">
+        <svg width="30" height="34" viewBox="0 0 30 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15 1C15 1 2 14 2 22a13 13 0 0 0 26 0C28 14 15 1 15 1z" fill="url(#logoGrad)"/>
+          <path d="M15 10 L15 28 M9 22 L15 28 L21 22" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/>
+          <defs>
+            <linearGradient id="logoGrad" x1="2" y1="1" x2="28" y2="34" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#8b5cf6"/>
+              <stop offset="100%" stop-color="#c084fc"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="brand-name">
+        <span class="b1">Nesso Drop</span>
+        <span class="b2">Control Plane</span>
+      </div>
     </div>
     <ul class="nav-links">
-      <li><a href="#" data-view="signals" class="active">
+      <li><a href="#" data-view="home" class="active">
+        <svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
+        Overview
+      </a></li>
+      <li><a href="#" data-view="signals">
         <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         Signals
       </a></li>
@@ -23,7 +41,7 @@
         Products
       </a></li>
       <li><a href="#" data-view="suppliers">
-        <svg viewBox="0 0 24 24"><path d="M4 4h16v2H4zm0 4h16v2H4zm0 4h12v2H4zm0 4h10v2H4z"/></svg>
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="4"/><path d="M2 9h20M2 15h12M2 21h8"/></svg>
         Suppliers
       </a></li>
       <li><a href="#" data-view="campaigns">
@@ -45,24 +63,97 @@
     </ul>
     <div class="sidebar-user" id="user-info">
       <span id="user-email">Not signed in</span>
-      <button id="btn-logout" class="btn-ghost">Sign out</button>
+      <button id="btn-logout" class="btn btn-ghost btn-sm">Sign out</button>
     </div>
   </nav>
 
   <main class="content">
 
+    <!-- ── Home / Overview ──────────────────────────────────── -->
+    <section id="view-home" class="view">
+      <div class="home-hero">
+        <div class="home-logo">
+          <svg width="52" height="60" viewBox="0 0 30 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 1C15 1 2 14 2 22a13 13 0 0 0 26 0C28 14 15 1 15 1z" fill="url(#heroLogoGrad)"/>
+            <path d="M15 10 L15 28 M9 22 L15 28 L21 22" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/>
+            <defs>
+              <linearGradient id="heroLogoGrad" x1="2" y1="1" x2="28" y2="34" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#8b5cf6"/>
+                <stop offset="100%" stop-color="#c084fc"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="home-title">
+          <h1>Nesso Drop</h1>
+          <p>AI-powered dropshipping intelligence platform</p>
+        </div>
+      </div>
+
+      <div id="home-stats" class="home-stats">
+        <div class="home-stat">
+          <div class="home-stat-label">Signals Discovered</div>
+          <div class="home-stat-value accent" id="hs-raw">—</div>
+        </div>
+        <div class="home-stat">
+          <div class="home-stat-label">Under Review</div>
+          <div class="home-stat-value" id="hs-pending">—</div>
+        </div>
+        <div class="home-stat">
+          <div class="home-stat-label">Promoted to Products</div>
+          <div class="home-stat-value green" id="hs-promoted">—</div>
+        </div>
+        <div class="home-stat">
+          <div class="home-stat-label">Revenue (MTD)</div>
+          <div class="home-stat-value" id="hs-revenue">—</div>
+        </div>
+      </div>
+
+      <div id="home-meta" class="home-meta">
+        <span><span class="dot-live"></span> Discovery runs at 08:00 and 20:00 daily</span>
+        <span>Sources: Amazon · AliExpress · TikTok Shop · eBay</span>
+      </div>
+
+      <div class="home-quicklinks">
+        <button class="btn btn-primary" onclick="showView('signals')">View Signals</button>
+        <button class="btn btn-secondary" onclick="showView('candidates')">View Products</button>
+        <button class="btn btn-secondary" onclick="showView('campaigns')">View Campaigns</button>
+        <button class="btn btn-secondary" onclick="showView('financials')">Financials</button>
+      </div>
+
+      <div class="home-pipeline">
+        <div class="home-pipeline-header">Pipeline Status</div>
+        <div class="pipeline-row highlight">
+          <span class="pipeline-label">Raw signals (unreviewed)</span>
+          <span class="pipeline-count" id="pl-raw">—</span>
+        </div>
+        <div class="pipeline-row">
+          <span class="pipeline-label">Signals under review</span>
+          <span class="pipeline-count" id="pl-pending">—</span>
+        </div>
+        <div class="pipeline-row">
+          <span class="pipeline-label">Promoted to candidates</span>
+          <span class="pipeline-count" id="pl-promoted">—</span>
+        </div>
+        <div class="pipeline-row">
+          <span class="pipeline-label">Rejected signals</span>
+          <span class="pipeline-count text-grey" id="pl-rejected">—</span>
+        </div>
+      </div>
+    </section>
+
     <!-- ── Signals View ──────────────────────────────────────── -->
-    <section id="view-signals" class="view">
+    <section id="view-signals" class="view hidden">
       <div class="view-header">
         <h1>Product Signals</h1>
         <div class="lane-tabs">
-          <button class="lane-tab active" data-lane="raw">Discovery <span class="badge" id="count-raw">0</span></button>
-          <button class="lane-tab" data-lane="pending">Under Review <span class="badge" id="count-pending">0</span></button>
-          <button class="lane-tab" data-lane="promoted">Approved <span class="badge" id="count-promoted">0</span></button>
+          <button class="lane-tab active" data-lane="raw">Discovery <span class="badge badge-count" id="count-raw">0</span></button>
+          <button class="lane-tab" data-lane="pending">Under Review <span class="badge badge-count" id="count-pending">0</span></button>
+          <button class="lane-tab" data-lane="promoted">Promoted <span class="badge badge-count" id="count-promoted">0</span></button>
         </div>
       </div>
       <div id="signals-grid" class="card-grid">
-        <div class="loading-state">Loading signals...</div>
+        <div class="loading-state"><div class="spinner"></div> Loading signals...</div>
       </div>
     </section>
 
@@ -90,7 +181,7 @@
         </div>
       </div>
       <div id="candidates-grid" class="card-grid">
-        <div class="loading-state">Loading candidates...</div>
+        <div class="loading-state"><div class="spinner"></div> Loading products...</div>
       </div>
     </section>
 
@@ -104,7 +195,7 @@
           <button class="view-tab" data-supplier-view="fastest">Fastest Delivery</button>
         </div>
       </div>
-      <p class="helper-text">Select a candidate to compare supplier options.</p>
+      <p class="helper-text">Select a candidate from Products to compare supplier options.</p>
       <div id="suppliers-table-wrap"></div>
     </section>
 
@@ -114,14 +205,13 @@
         <h1>Campaigns</h1>
         <div class="status-tabs">
           <button class="status-tab active" data-status="">All</button>
-          <button class="status-tab" data-status="draft">Draft</button>
           <button class="status-tab" data-status="pending_approval">Pending Approval</button>
           <button class="status-tab" data-status="approved">Approved</button>
           <button class="status-tab" data-status="live">Live</button>
         </div>
       </div>
       <div id="campaigns-grid" class="card-grid">
-        <div class="loading-state">Loading campaigns...</div>
+        <div class="loading-state"><div class="spinner"></div> Loading campaigns...</div>
       </div>
     </section>
 
@@ -143,12 +233,12 @@
     <section id="view-financials" class="view hidden">
       <div class="view-header"><h1>Financials</h1></div>
       <div class="stat-grid" id="financials-stats">
-        <div class="stat-card loading">Revenue<br><strong>—</strong></div>
-        <div class="stat-card loading">Net Profit<br><strong>—</strong></div>
-        <div class="stat-card loading">Orders<br><strong>—</strong></div>
-        <div class="stat-card loading">Supplier Cost<br><strong>—</strong></div>
-        <div class="stat-card loading">Ad Spend<br><strong>—</strong></div>
-        <div class="stat-card loading">Stripe Fees<br><strong>—</strong></div>
+        <div class="stat-card"><span class="stat-label">Revenue</span><strong class="stat-value">—</strong></div>
+        <div class="stat-card"><span class="stat-label">Net Profit</span><strong class="stat-value">—</strong></div>
+        <div class="stat-card"><span class="stat-label">Orders</span><strong class="stat-value">—</strong></div>
+        <div class="stat-card"><span class="stat-label">Supplier Cost</span><strong class="stat-value">—</strong></div>
+        <div class="stat-card"><span class="stat-label">Ad Spend</span><strong class="stat-value">—</strong></div>
+        <div class="stat-card"><span class="stat-label">Stripe Fees</span><strong class="stat-value">—</strong></div>
       </div>
       <div id="financials-warning" class="warning-banner hidden"></div>
       <div id="monthly-chart" class="chart-wrap"></div>
@@ -158,7 +248,7 @@
     <section id="view-integrations" class="view hidden">
       <div class="view-header"><h1>Integrations</h1></div>
       <div id="integrations-grid" class="integrations-grid">
-        <div class="loading-state">Loading integrations...</div>
+        <div class="loading-state"><div class="spinner"></div> Loading...</div>
       </div>
     </section>
 
@@ -174,6 +264,7 @@
 
   <script src="/js/api.js"></script>
   <script src="/js/components.js"></script>
+  <script src="/js/views/home.js"></script>
   <script src="/js/views/signals.js"></script>
   <script src="/js/views/candidates.js"></script>
   <script src="/js/views/suppliers.js"></script>
