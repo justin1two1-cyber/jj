@@ -8,7 +8,9 @@ const VIEWS = {
   campaigns:    { init: initCampaignsView,    label: "Campaigns" },
   orders:       { init: initOrdersView,       label: "Orders" },
   financials:   { init: initFinancialsView,   label: "Financials" },
-  integrations: { init: initIntegrationsView, label: "Integrations" },
+  integrations: { init: initIntegrationsView, label: "Settings" },
+  downloads:    { init: initDownloadsView,    label: "Downloads" },
+  status:       { init: initStatusView,       label: "System Status" },
 };
 
 let currentView = null;

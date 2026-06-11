@@ -1,3 +1,5 @@
+let currentCandStatus = "";
+
 async function loadCandidates() {
   const grid = document.getElementById("candidates-grid");
   grid.innerHTML = ND_UI.loadingState();
@@ -6,7 +8,15 @@ async function loadCandidates() {
   const intent = document.getElementById("filter-intent").value;
   const topOnly = document.getElementById("toggle-top-only").checked;
 
-  let path = topOnly ? "/api/candidates/top" : "/api/candidates?status=approved";
+  let path;
+  if (topOnly) {
+    path = "/api/candidates/top?";
+  } else {
+    // Lane tab selects the status: "" = all, pending = Under Review, approved, live
+    path = currentCandStatus
+      ? `/api/candidates?status=${currentCandStatus}`
+      : "/api/candidates?";
+  }
   if (priceBand) path += `&price_band=${priceBand}`;
   if (intent) path += `&intent_category=${intent}`;
 
@@ -14,9 +24,12 @@ async function loadCandidates() {
     const data = await ND.apiGet(path);
     const candidates = data.candidates || [];
     if (!candidates.length) {
-      grid.innerHTML = ND_UI.emptyState(
-        "No candidates yet. Promote signals from the Signals view to add products here."
-      );
+      const laneMsg = {
+        pending: "No products under review.",
+        approved: "No approved products yet.",
+        live: "No live products yet.",
+      }[currentCandStatus] || "No candidates yet. Promote signals from the Signals view to add products here.";
+      grid.innerHTML = ND_UI.emptyState(laneMsg);
       return;
     }
     grid.innerHTML = candidates.map((c) => ND_UI.candidateCard(c)).join("");
@@ -60,6 +73,14 @@ function initCandidatesView() {
   document.getElementById("filter-price-band").addEventListener("change", loadCandidates);
   document.getElementById("filter-intent").addEventListener("change", loadCandidates);
   document.getElementById("toggle-top-only").addEventListener("change", loadCandidates);
+  document.querySelectorAll("#candidate-lane-tabs .lane-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#candidate-lane-tabs .lane-tab").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentCandStatus = btn.dataset.candStatus;
+      loadCandidates();
+    });
+  });
   loadCandidates();
 }
 

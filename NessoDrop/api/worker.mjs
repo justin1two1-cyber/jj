@@ -274,6 +274,45 @@ async function handlePriceOptimizer(_payload) {
   }
 }
 
+async function handleBillingIntegrity(_payload) {
+  // Nightly check: every paid/dispatched order must have a complete billing record.
+  console.log("[worker] Running billing integrity check");
+
+  // Orders that have progressed past payment but have NO billing record at all
+  const missing = await query(
+    `SELECT o.id, o.status, o.created_at
+     FROM orders o
+     LEFT JOIN billing_records br ON br.order_id = o.id
+     WHERE o.status IN ('paid', 'dispatched_to_supplier', 'shipped', 'delivered')
+       AND br.id IS NULL`
+  );
+
+  // Billing records older than 24h still missing cost components
+  const incomplete = await query(
+    `SELECT id, order_id FROM billing_records
+     WHERE is_complete = false AND recorded_at < NOW() - INTERVAL '24 hours'`
+  );
+
+  for (const o of missing.rows) {
+    await query(
+      `INSERT INTO audit_log (action, entity_type, entity_id, detail)
+       VALUES ('billing_integrity_missing_record', 'order', $1, $2)`,
+      [o.id, JSON.stringify({ order_status: o.status, order_created: o.created_at })]
+    );
+  }
+  for (const r of incomplete.rows) {
+    await query(
+      `INSERT INTO audit_log (action, entity_type, entity_id, detail)
+       VALUES ('billing_integrity_incomplete', 'billing_record', $1, $2)`,
+      [r.id, JSON.stringify({ order_id: r.order_id })]
+    );
+  }
+
+  console.log(
+    `[worker] Billing integrity: ${missing.rows.length} orders missing records, ${incomplete.rows.length} stale incomplete records`
+  );
+}
+
 // ─── Main Loop ────────────────────────────────────────────────────────────
 
 const handlers = {
@@ -282,6 +321,7 @@ const handlers = {
   generate_video: handleGenerateVideo,
   price_optimizer: handlePriceOptimizer,
   octoparse_supplier_match: handleOctoparseSupplierMatch,
+  billing_integrity: handleBillingIntegrity,
 };
 
 async function tick() {
@@ -305,19 +345,23 @@ async function tick() {
   }
 }
 
-// DB-idempotent nightly scheduler: inserts price_optimizer once per day at 3am.
+// DB-idempotent nightly scheduler: inserts each nightly job once per day at 3am.
 // Crash-safe — checks DB so restarts don't skip or double-schedule.
+const NIGHTLY_JOBS = ["price_optimizer", "billing_integrity"];
+
 async function maybeScheduleNightlyJobs() {
   const now = new Date();
   if (now.getHours() !== 3) return;
   const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
-  const existing = await query(
-    `SELECT id FROM tasks WHERE type = 'price_optimizer' AND queued_at >= $1::timestamptz`,
-    [today]
-  );
-  if (existing.rows.length === 0) {
-    await query(`INSERT INTO tasks (type) VALUES ('price_optimizer')`);
-    console.log("[worker] Scheduled nightly price optimizer");
+  for (const jobType of NIGHTLY_JOBS) {
+    const existing = await query(
+      `SELECT id FROM tasks WHERE type = $1 AND queued_at >= $2::timestamptz`,
+      [jobType, today]
+    );
+    if (existing.rows.length === 0) {
+      await query(`INSERT INTO tasks (type) VALUES ($1)`, [jobType]);
+      console.log(`[worker] Scheduled nightly ${jobType}`);
+    }
   }
 }
 

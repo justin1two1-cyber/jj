@@ -1,7 +1,9 @@
 import "dotenv/config";
 import "./middleware/asyncErrors.mjs"; // patch Express 4 async error handling — must be first
+import { randomUUID } from "node:crypto";
 import express from "express";
 import rateLimit from "express-rate-limit";
+import { query } from "./db.mjs";
 import authRoutes from "./routes/auth.mjs";
 import signalsRoutes from "./routes/signals.mjs";
 import candidatesRoutes from "./routes/candidates.mjs";
@@ -22,6 +24,33 @@ app.use("/api/orders/webhook", express.raw({ type: "application/json" }), (req, 
 });
 
 app.use(express.json({ limit: "4mb" }));
+
+// Correlation ID — every request gets one; echoed in the response header
+// and attached to req for structured logging downstream
+app.use((req, res, next) => {
+  req.correlationId = req.headers["x-correlation-id"] || randomUUID();
+  res.setHeader("X-Correlation-Id", req.correlationId);
+  next();
+});
+
+// Structured request logging — one line per request with correlation ID
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    // Skip noisy health polls
+    if (req.path === "/health") return;
+    console.log(JSON.stringify({
+      ts: new Date().toISOString(),
+      cid: req.correlationId,
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      ms: Date.now() - start,
+      user: req.user?.id || null,
+    }));
+  });
+  next();
+});
 
 // CORS — restrict to known origins; * is too broad for a credentialed API
 const ALLOWED_ORIGINS = new Set(
@@ -72,17 +101,33 @@ app.use("/api/billing", billingRoutes);
 app.use("/api/integrations", integrationsRoutes);
 app.use("/api/admin", adminRoutes);
 
-// Global health endpoint (no auth)
-app.get("/health", (_req, res) => {
-  res.json({ ok: true, service: "nessodrop-api", ts: new Date().toISOString() });
+// Global health endpoint (no auth) — returns db state and task queue depth
+app.get("/health", async (_req, res) => {
+  let dbConnected = false;
+  let queueDepth = null;
+  try {
+    const r = await query(`SELECT COUNT(*) FILTER (WHERE status = 'queued') as queued FROM tasks`);
+    dbConnected = true;
+    queueDepth = Number(r.rows[0].queued);
+  } catch {}
+
+  res.status(dbConnected ? 200 : 503).json({
+    ok: dbConnected,
+    service: "nessodrop-api",
+    version: "1.0.0",
+    db_connected: dbConnected,
+    queue_depth: queueDepth,
+    ts: new Date().toISOString(),
+  });
 });
 
 // Global error handler — never expose raw error messages in production
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
   const isProd = process.env.NODE_ENV === "production";
-  console.error("Unhandled error:", err.stack || err.message);
+  console.error(`[${req.correlationId || "-"}] Unhandled error:`, err.stack || err.message);
   res.status(err.status || 500).json({
     error: isProd ? "Internal server error" : (err.message || "Internal server error"),
+    correlation_id: req.correlationId || null,
   });
 });
 
