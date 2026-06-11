@@ -69,9 +69,12 @@ services:
     environment:
       PORT: 3003
       API_URL: http://api:3001
+    # service_started (not healthy): the dashboard is a static UI server and
+    # must stay reachable even while the API is restarting or degraded —
+    # the UI itself shows API-unreachable states.
     depends_on:
       api:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3003/health | grep -q '\"ok\":true'"]
       interval: 30s
@@ -89,7 +92,7 @@ services:
       API_URL: http://api:3001
     depends_on:
       api:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3010/health | grep -q '\"ok\":true'"]
       interval: 30s
