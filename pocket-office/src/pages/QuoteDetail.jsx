@@ -111,7 +111,16 @@ export default function QuoteDetail() {
         <h3 style={{ marginBottom: 8 }}>Client</h3>
         <p>{quote.clientName || 'Not specified'}</p>
         {quote.clientPhone && <p style={{ color: 'var(--color-text-secondary)' }}>{quote.clientPhone}</p>}
+        {quote.clientEmail && <p style={{ color: 'var(--color-text-secondary)' }}>{quote.clientEmail}</p>}
         {quote.siteAddress && <p style={{ color: 'var(--color-text-secondary)' }}>{quote.siteAddress}</p>}
+        {quote.validUntil && (
+          <p style={{
+            color: new Date(quote.validUntil) < new Date() ? 'var(--color-danger)' : 'var(--color-text-muted)',
+            fontSize: 13, marginTop: 8,
+          }}>
+            {new Date(quote.validUntil) < new Date() ? 'Expired' : 'Valid until'} {quote.validUntil}
+          </p>
+        )}
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>

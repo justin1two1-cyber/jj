@@ -9,6 +9,7 @@ export default function ClientDetail() {
   const [client, setClient] = useState(null);
   const [quotes, setQuotes] = useState([]);
   const [jobs, setJobs] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
@@ -23,12 +24,14 @@ export default function ClientDetail() {
     setClient(c);
     setForm(c);
 
-    const [q, j] = await Promise.all([
+    const [q, j, inv] = await Promise.all([
       db.quotes.where('clientId').equals(id).toArray(),
       db.jobs.where('clientId').equals(id).toArray(),
+      db.invoices.where('clientId').equals(id).toArray(),
     ]);
     setQuotes(q);
     setJobs(j);
+    setInvoices(inv.sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1)));
 
     const jobIds = j.map(jb => jb.id);
     if (jobIds.length > 0) {
@@ -60,6 +63,8 @@ export default function ClientDetail() {
   if (!client) return <div className="page"><p>Loading...</p></div>;
 
   const totalQuoted = quotes.reduce((s, q) => s + (q.totalPrice || 0), 0);
+  const totalInvoiced = invoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
+  const totalPaid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.totalAmount || 0), 0);
   const totalSpent = expenses.reduce((s, e) => s + (e.amount || 0), 0);
 
   return (
@@ -119,18 +124,22 @@ export default function ClientDetail() {
         </div>
       )}
 
-      <div className="stat-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+      <div className="stat-grid" style={{ marginBottom: 20 }}>
         <div className="stat-card">
           <span className="stat-card-label">Quotes</span>
           <span className="stat-card-value">{quotes.length}</span>
         </div>
         <div className="stat-card">
           <span className="stat-card-label">Total Quoted</span>
-          <span className="stat-card-value money" style={{ fontSize: 20 }}>{formatCents(totalQuoted)}</span>
+          <span className="stat-card-value money" style={{ fontSize: 18 }}>{formatCents(totalQuoted)}</span>
         </div>
         <div className="stat-card">
           <span className="stat-card-label">Jobs</span>
           <span className="stat-card-value">{jobs.length}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-card-label">Paid</span>
+          <span className="stat-card-value money money-positive" style={{ fontSize: 18 }}>{formatCents(totalPaid)}</span>
         </div>
       </div>
 
@@ -170,6 +179,30 @@ export default function ClientDetail() {
                   <div style={{ textAlign: 'right' }}>
                     <div className="money">{formatCents(j.totalQuoted)}</div>
                     <span className={`badge badge-${j.status === 'in_progress' ? 'active' : j.status}`}>{j.status.replace('_', ' ')}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {invoices.length > 0 && (
+        <section style={{ marginBottom: 24 }}>
+          <h2 style={{ marginBottom: 12 }}>Invoices</h2>
+          <div className="list-gap">
+            {invoices.map(inv => (
+              <div key={inv.id} className="card card-clickable" onClick={() => navigate(`/invoices/${inv.id}`)}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{inv.invoiceNumber}</div>
+                    <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                      {inv.dateSent || 'Not sent'} · Due: {inv.dateDue || 'N/A'}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div className="money">{formatCents(inv.totalAmount)}</div>
+                    <span className={`badge badge-${inv.status}`}>{inv.status}</span>
                   </div>
                 </div>
               </div>

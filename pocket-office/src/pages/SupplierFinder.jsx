@@ -114,11 +114,7 @@ export default function SupplierFinder() {
 
   function handleQuickSearch(q) {
     setSearch(q);
-    setTimeout(() => {
-      setSearch(q);
-      const input = document.querySelector('input[placeholder*="What do you need"]');
-      if (input) input.value = q;
-    }, 0);
+    setTimeout(() => searchSuppliers(), 0);
   }
 
   return (
@@ -149,7 +145,7 @@ export default function SupplierFinder() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         {['timber', 'screws', 'concrete', 'roofing', 'tools', 'plumbing', 'tiles', 'paint'].map(q => (
           <button key={q} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 13 }}
-            onClick={() => { setSearch(q); }}>
+            onClick={() => handleQuickSearch(q)}>
             {q}
           </button>
         ))}

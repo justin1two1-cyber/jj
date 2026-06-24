@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../db';
 import { formatCents } from '../utils/formatCurrency';
 
-const REPORT_TYPES = ['overview', 'profit_loss', 'expenses', 'gst', 'mileage', 'time'];
+const REPORT_TYPES = ['overview', 'profit_loss', 'expenses', 'gst', 'mileage', 'time', 'assets'];
 
 export default function Reports() {
   const [reportType, setReportType] = useState('overview');
@@ -48,13 +48,14 @@ export default function Reports() {
     setLoading(true);
     const { start, end } = getDateRange();
 
-    const [expenses, jobs, quotes, invoices, mileage, timeLogs] = await Promise.all([
+    const [expenses, jobs, quotes, invoices, mileage, timeLogs, assets] = await Promise.all([
       db.expenses.toArray(),
       db.jobs.toArray(),
       db.quotes.toArray(),
       db.invoices.toArray(),
       db.mileageLog.toArray(),
       db.timeLog.toArray(),
+      db.assets.toArray(),
     ]);
 
     const filteredExpenses = expenses.filter(e => e.date >= start && e.date <= end);
@@ -100,12 +101,36 @@ export default function Reports() {
       return { jobId, jobNumber: job?.jobNumber || '?', clientName: job?.clientName || 'Unknown', ...times };
     }).sort((a, b) => (b.onSite + b.travel) - (a.onSite + a.travel));
 
+    const assetData = assets.map(a => {
+      let currentValue = a.purchasePrice || 0;
+      if (a.depreciationMethod === 'instant_write_off') {
+        currentValue = 0;
+      } else {
+        const yearsOwned = (Date.now() - new Date(a.purchaseDate).getTime()) / (365.25 * 86400000);
+        const life = a.effectiveLifeYears || 5;
+        if (a.depreciationMethod === 'prime_cost') {
+          const dep = a.purchasePrice * (1 / life) * yearsOwned;
+          currentValue = Math.max(0, a.purchasePrice - Math.round(dep));
+        } else {
+          const rate = 2 / life;
+          let val = a.purchasePrice;
+          for (let i = 0; i < Math.floor(yearsOwned); i++) val = Math.round(val * (1 - rate));
+          val = Math.round(val * (1 - rate * (yearsOwned - Math.floor(yearsOwned))));
+          currentValue = Math.max(0, val);
+        }
+      }
+      return { ...a, currentValue, depreciation: (a.purchasePrice || 0) - currentValue };
+    });
+    const totalPurchaseValue = assetData.reduce((s, a) => s + (a.purchasePrice || 0), 0);
+    const totalCurrentValue = assetData.reduce((s, a) => s + a.currentValue, 0);
+    const totalDepreciation = totalPurchaseValue - totalCurrentValue;
+
     setData({
       totalExpenses, totalGstPaid, totalIncome, totalGstCollected,
       expenseByCategory, totalKm, totalDeduction,
       totalOnSite, totalTravel, jobPnL,
       filteredExpenses, filteredMileage, filteredTime,
-      jobTimeBreakdown,
+      jobTimeBreakdown, assetData, totalPurchaseValue, totalCurrentValue, totalDepreciation,
       netGst: totalGstCollected - totalGstPaid,
       profit: totalIncome - totalExpenses,
       activeJobs: jobs.filter(j => j.status === 'in_progress').length,
@@ -401,6 +426,55 @@ export default function Reports() {
           </div>
         );
       })()}
+
+      {reportType === 'assets' && (
+        <div>
+          <h3 style={{ marginBottom: 12 }}>Asset Depreciation</h3>
+          <div className="stat-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 20 }}>
+            <div className="stat-card">
+              <span className="stat-card-label">Purchase Value</span>
+              <span className="stat-card-value money" style={{ fontSize: 18 }}>{formatCents(data.totalPurchaseValue)}</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-card-label">Current Value</span>
+              <span className="stat-card-value money" style={{ fontSize: 18 }}>{formatCents(data.totalCurrentValue)}</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-card-label">Total Depreciation</span>
+              <span className="stat-card-value money money-negative" style={{ fontSize: 18 }}>{formatCents(data.totalDepreciation)}</span>
+            </div>
+          </div>
+          {(data.assetData || []).length > 0 ? (
+            <div className="list-gap">
+              {data.assetData.map(a => (
+                <div key={a.id} className="card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{a.name}</div>
+                      <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                        {a.category} · {a.depreciationMethod.replace(/_/g, ' ')} · Purchased {a.purchaseDate}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div className="money" style={{ fontWeight: 600 }}>{formatCents(a.currentValue)}</div>
+                      {a.depreciation > 0 && (
+                        <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                          -{formatCents(a.depreciation)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>No assets registered</p>
+              <p style={{ fontSize: 14, marginTop: 8 }}>Add assets in the Asset Register to see depreciation</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

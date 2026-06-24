@@ -133,6 +133,13 @@ export default function Dashboard() {
         </div>
       )}
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
+        <button className="btn btn-primary" style={{ flexShrink: 0 }} onClick={() => navigate('/quotes/new')}>New Quote</button>
+        <button className="btn btn-secondary" style={{ flexShrink: 0 }} onClick={() => navigate('/expenses/new')}>Log Expense</button>
+        <button className="btn btn-secondary" style={{ flexShrink: 0 }} onClick={() => navigate('/mileage')}>Log Trip</button>
+        <button className="btn btn-secondary" style={{ flexShrink: 0 }} onClick={() => navigate('/supplier-finder')}>Find Supplier</button>
+      </div>
+
       <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
         <section>
           <div className="page-header">

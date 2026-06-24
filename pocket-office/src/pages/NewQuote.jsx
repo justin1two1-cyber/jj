@@ -140,7 +140,9 @@ export default function NewQuote() {
       taxAmount: calculation?.taxAmount || 0,
       totalPrice: calculation?.totalPrice || 0,
       status: 'draft',
-      validUntil: null,
+      validUntil: settings.quoteValidDays
+        ? new Date(Date.now() + settings.quoteValidDays * 86400000).toISOString().slice(0, 10)
+        : new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
       notes,
       photos: photoKeys,
       createdAt: now,

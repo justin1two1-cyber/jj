@@ -15,6 +15,7 @@ export default function NewInvoice() {
     jobId: presetJobId,
     clientName: '',
     clientEmail: '',
+    quoteId: null,
     lineItems: [{ description: '', quantity: 1, amount: '' }],
   });
 
@@ -40,9 +41,12 @@ export default function NewInvoice() {
           approvedVars.forEach(v => {
             items.push({ description: `Variation ${v.variationNumber}: ${v.description}`, quantity: 1, amount: ((v.amount || 0) / 100).toFixed(2) });
           });
+          const client = allClients.find(c => c.id === job.clientId);
           setForm(f => ({
             ...f,
             clientName: job.clientName || '',
+            clientEmail: client?.email || '',
+            quoteId: job.quoteId || null,
             lineItems: items,
           }));
         }
@@ -94,7 +98,7 @@ export default function NewInvoice() {
       id: uuid(),
       jobId: form.jobId || null,
       clientId: client?.id || null,
-      quoteId: null,
+      quoteId: form.quoteId || null,
       invoiceNumber,
       clientName: form.clientName,
       lineItems: form.lineItems.map(item => ({
@@ -141,14 +145,19 @@ export default function NewInvoice() {
               placeholder="Client name" />
           </div>
           <div className="form-group">
-            <label>Link to Job</label>
-            <select value={form.jobId} onChange={e => selectJob(e.target.value)}>
-              <option value="">No job</option>
-              {jobs.map(j => (
-                <option key={j.id} value={j.id}>{j.jobNumber} - {j.clientName}</option>
-              ))}
-            </select>
+            <label>Client Email</label>
+            <input type="email" value={form.clientEmail} onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))}
+              placeholder="client@email.com" />
           </div>
+        </div>
+        <div className="form-group">
+          <label>Link to Job</label>
+          <select value={form.jobId} onChange={e => selectJob(e.target.value)}>
+            <option value="">No job</option>
+            {jobs.map(j => (
+              <option key={j.id} value={j.id}>{j.jobNumber} - {j.clientName}</option>
+            ))}
+          </select>
         </div>
 
         <h3 style={{ margin: '20px 0 12px' }}>Line Items</h3>
