@@ -39,6 +39,8 @@ const sections = [
     title: 'Business',
     items: [
       { to: '/reports', icon: '⊞', label: 'Reports' },
+      { to: '/data-export', icon: '↓', label: 'Data & Export' },
+      { to: '/weather', icon: '☁', label: 'Weather' },
       { to: '/settings', icon: '⚙', label: 'Settings' },
     ]
   },

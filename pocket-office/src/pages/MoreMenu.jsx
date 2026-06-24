@@ -10,7 +10,9 @@ const menuItems = [
   { to: '/swms', icon: '⚠', label: 'SWMS', desc: 'Safety documents' },
   { to: '/assets', icon: '⊟', label: 'Asset Register', desc: 'Tools and equipment' },
   { to: '/compliance', icon: '✓', label: 'Compliance', desc: 'Licences and insurance' },
+  { to: '/weather', icon: '☁', label: 'Weather Check', desc: '3-day forecast for job sites' },
   { to: '/reports', icon: '⊞', label: 'Reports', desc: 'Business reports and exports' },
+  { to: '/data-export', icon: '↓', label: 'Data & Export', desc: 'Accounting export, backup & restore' },
   { to: '/settings', icon: '⚙', label: 'Settings', desc: 'Business details and defaults' },
 ];
 

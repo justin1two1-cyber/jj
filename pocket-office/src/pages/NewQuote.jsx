@@ -4,6 +4,8 @@ import { v4 as uuid } from 'uuid';
 import { db, getNextNumber, getAllSettings } from '../db';
 import { calculateQuote } from '../utils/quoteEngine';
 import { formatCents } from '../utils/formatCurrency';
+import CameraInput from '../components/CameraInput';
+import VoiceInput from '../components/VoiceInput';
 
 const STEPS = ['Template', 'Client', 'Measurements', 'Materials', 'Costs', 'Summary'];
 
@@ -17,20 +19,26 @@ export default function NewQuote() {
   const [clientInfo, setClientInfo] = useState({ clientName: '', clientPhone: '', clientEmail: '', siteAddress: '' });
   const [measurements, setMeasurements] = useState({});
   const [calculation, setCalculation] = useState(null);
-  const [costOverrides, setCostOverrides] = useState({});
+  const [notes, setNotes] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [existingClients, setExistingClients] = useState([]);
+  const [clientSuggestions, setClientSuggestions] = useState([]);
+  const [wasteOverrides, setWasteOverrides] = useState({});
 
   useEffect(() => {
     async function load() {
-      const [tmpls, mats, setts] = await Promise.all([
+      const [tmpls, mats, setts, clients] = await Promise.all([
         db.templates.toArray(),
         db.materials.toArray(),
         getAllSettings(),
+        db.clients.toArray(),
       ]);
       setTemplates(tmpls);
       const matMap = {};
       mats.forEach(m => { matMap[m.id] = m; });
       setMaterials(matMap);
       setSettings(setts);
+      setExistingClients(clients);
     }
     load();
   }, []);
@@ -45,23 +53,71 @@ export default function NewQuote() {
     setStep(1);
   }
 
+  function handleClientNameChange(name) {
+    setClientInfo({ ...clientInfo, clientName: name });
+    if (name.length >= 2) {
+      const matches = existingClients.filter(c =>
+        c.name.toLowerCase().includes(name.toLowerCase())
+      );
+      setClientSuggestions(matches.slice(0, 5));
+    } else {
+      setClientSuggestions([]);
+    }
+  }
+
+  function selectExistingClient(client) {
+    setClientInfo({
+      clientName: client.name,
+      clientPhone: client.phone || '',
+      clientEmail: client.email || '',
+      siteAddress: client.address || '',
+    });
+    setClientSuggestions([]);
+
+    if (client.isRepeatClient && client.preferredRates) {
+      const rates = client.preferredRates;
+      if (rates.labourRate) setSettings(s => ({ ...s, labourRate: rates.labourRate }));
+      if (rates.markupPercent != null) setSettings(s => ({ ...s, markupPercent: rates.markupPercent }));
+    }
+  }
+
   function recalculate() {
     if (!selectedTemplate) return;
     const numMeasurements = {};
     Object.entries(measurements).forEach(([k, v]) => {
       numMeasurements[k] = parseFloat(v) || 0;
     });
-    const result = calculateQuote(selectedTemplate, numMeasurements, materials, settings);
+
+    const templateWithOverrides = { ...selectedTemplate };
+    if (Object.keys(wasteOverrides).length > 0) {
+      templateWithOverrides.defaultMaterials = selectedTemplate.defaultMaterials.map(mat => ({
+        ...mat,
+        wasteFactor: wasteOverrides[mat.materialId] ?? mat.wasteFactor,
+      }));
+    }
+
+    const result = calculateQuote(templateWithOverrides, numMeasurements, materials, settings);
     setCalculation(result);
   }
 
   useEffect(() => {
     if (step >= 3 && selectedTemplate) recalculate();
-  }, [step, measurements]);
+  }, [step, measurements, wasteOverrides]);
+
+  function handlePhotoCapture(blob, isMultiple) {
+    if (isMultiple && Array.isArray(blob)) {
+      setPhotos(prev => [...prev, ...blob]);
+    } else if (blob) {
+      setPhotos(prev => [...prev, blob]);
+    }
+  }
 
   async function saveQuote() {
     const quoteNumber = await getNextNumber('PO');
     const now = new Date().toISOString();
+
+    const photoKeys = photos.map(() => `quote_photo_${uuid()}`);
+
     const quote = {
       id: uuid(),
       clientId: null,
@@ -81,8 +137,8 @@ export default function NewQuote() {
       totalPrice: calculation?.totalPrice || 0,
       status: 'draft',
       validUntil: null,
-      notes: '',
-      photos: [],
+      notes,
+      photos: photoKeys,
       createdAt: now,
       updatedAt: now,
       syncedAt: null,
@@ -105,6 +161,9 @@ export default function NewQuote() {
           updatedAt: now,
           syncedAt: null,
         });
+      } else {
+        quote.clientId = existing.id;
+        await db.quotes.update(quote.id, { clientId: existing.id });
       }
     }
 
@@ -120,12 +179,14 @@ export default function NewQuote() {
             Step {step + 1} of {STEPS.length}: {STEPS[step]}
           </div>
         </div>
-        {step > 0 && (
-          <button className="btn btn-secondary" onClick={() => setStep(s => s - 1)}>Back</button>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {step > 0 && (
+            <button className="btn btn-secondary" onClick={() => setStep(s => s - 1)}>Back</button>
+          )}
+          <button className="btn btn-secondary" onClick={() => navigate(-1)}>Cancel</button>
+        </div>
       </div>
 
-      {/* Step 0: Template Selection */}
       {step === 0 && (
         <div>
           <p style={{ color: 'var(--color-text-secondary)', marginBottom: 16 }}>Pick a template or start blank</p>
@@ -152,12 +213,34 @@ export default function NewQuote() {
         </div>
       )}
 
-      {/* Step 1: Client Details */}
       {step === 1 && (
         <div style={{ maxWidth: 500 }}>
-          <div className="form-group">
+          <div className="form-group" style={{ position: 'relative' }}>
             <label>Client Name</label>
-            <input value={clientInfo.clientName} onChange={e => setClientInfo({ ...clientInfo, clientName: e.target.value })} placeholder="John Smith" />
+            <input
+              value={clientInfo.clientName}
+              onChange={e => handleClientNameChange(e.target.value)}
+              placeholder="John Smith"
+              autoComplete="off"
+            />
+            {clientSuggestions.length > 0 && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-sm)', overflow: 'hidden',
+              }}>
+                {clientSuggestions.map(c => (
+                  <div key={c.id} onClick={() => selectExistingClient(c)}
+                    style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid var(--color-border)' }}
+                    onMouseOver={e => e.currentTarget.style.background = 'var(--color-surface-hover)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                    <div style={{ fontWeight: 600 }}>{c.name}</div>
+                    {c.phone && <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{c.phone}</div>}
+                    {c.isRepeatClient && <span className="badge badge-accepted" style={{ fontSize: 10, marginTop: 4 }}>Repeat Client</span>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="form-group">
             <label>Phone</label>
@@ -175,7 +258,6 @@ export default function NewQuote() {
         </div>
       )}
 
-      {/* Step 2: Measurements */}
       {step === 2 && (
         <div style={{ maxWidth: 500 }}>
           {(selectedTemplate?.measurementFields || []).length === 0 ? (
@@ -198,6 +280,10 @@ export default function NewQuote() {
                   />
                 </div>
               ))}
+              <div className="form-group">
+                <label>Site Photos</label>
+                <CameraInput onCapture={handlePhotoCapture} multiple={true} label="Add Site Photos" />
+              </div>
               <button className="btn btn-primary btn-lg btn-block" onClick={() => setStep(3)}>
                 Calculate Materials
               </button>
@@ -206,22 +292,47 @@ export default function NewQuote() {
         </div>
       )}
 
-      {/* Step 3: Materials Review */}
       {step === 3 && calculation && (
         <div>
-          <p style={{ color: 'var(--color-text-secondary)', marginBottom: 16 }}>Review auto-calculated materials. Adjust quantities or prices as needed.</p>
+          <p style={{ color: 'var(--color-text-secondary)', marginBottom: 16 }}>Review auto-calculated materials. Adjust waste factors as needed.</p>
           <div className="list-gap">
-            {calculation.materials.map((mat, i) => (
-              <div key={i} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{mat.name}</div>
-                  <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                    {mat.qty} x {formatCents(mat.unitPrice)} {mat.wasteFactor > 1 ? `(inc. ${Math.round((mat.wasteFactor - 1) * 100)}% waste)` : ''}
+            {calculation.materials.map((mat, i) => {
+              const tmplMat = selectedTemplate.defaultMaterials[i];
+              const currentWaste = wasteOverrides[mat.materialId] ?? tmplMat?.wasteFactor ?? 1.0;
+              return (
+                <div key={i} className="card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>{mat.name}</div>
+                      <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                        {mat.qty} x {formatCents(mat.unitPrice)}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      {tmplMat && currentWaste > 1 && (
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>Waste</div>
+                          <select
+                            value={currentWaste}
+                            onChange={e => {
+                              setWasteOverrides(prev => ({ ...prev, [mat.materialId]: parseFloat(e.target.value) }));
+                            }}
+                            style={{ width: 70, padding: '4px 6px', fontSize: 13, textAlign: 'center' }}
+                          >
+                            <option value="1.0">0%</option>
+                            <option value="1.05">5%</option>
+                            <option value="1.1">10%</option>
+                            <option value="1.15">15%</option>
+                            <option value="1.2">20%</option>
+                          </select>
+                        </div>
+                      )}
+                      <div className="money" style={{ fontWeight: 600, minWidth: 80, textAlign: 'right' }}>{formatCents(mat.total)}</div>
+                    </div>
                   </div>
                 </div>
-                <div className="money" style={{ fontWeight: 600 }}>{formatCents(mat.total)}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="card" style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
             <span>Materials Subtotal</span>
@@ -233,7 +344,6 @@ export default function NewQuote() {
         </div>
       )}
 
-      {/* Step 4: Labour, Travel, Markup */}
       {step === 4 && calculation && (
         <div style={{ maxWidth: 500 }}>
           <div className="card" style={{ marginBottom: 16 }}>
@@ -268,13 +378,23 @@ export default function NewQuote() {
               <span className="money">{formatCents(calculation.totalPrice)}</span>
             </div>
           </div>
+
+          <div className="form-group">
+            <label>Notes</label>
+            <VoiceInput
+              value={notes}
+              onChange={setNotes}
+              onTranscript={setNotes}
+              placeholder="Add notes about the job (tap mic for voice)..."
+            />
+          </div>
+
           <button className="btn btn-primary btn-lg btn-block" onClick={() => setStep(5)}>
             Review Summary
           </button>
         </div>
       )}
 
-      {/* Step 5: Summary */}
       {step === 5 && calculation && (
         <div style={{ maxWidth: 600 }}>
           <div className="card" style={{ marginBottom: 16 }}>
@@ -319,6 +439,25 @@ export default function NewQuote() {
               <span className="money">{formatCents(calculation.totalPrice)}</span>
             </div>
           </div>
+
+          {notes && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginBottom: 8 }}>Notes</h3>
+              <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', whiteSpace: 'pre-wrap' }}>{notes}</p>
+            </div>
+          )}
+
+          {photos.length > 0 && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginBottom: 8 }}>Site Photos ({photos.length})</h3>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {photos.map((p, i) => (
+                  <img key={i} src={URL.createObjectURL(p)} alt={`Site photo ${i + 1}`}
+                    style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} />
+                ))}
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: 12 }}>
             <button className="btn btn-secondary btn-lg" style={{ flex: 1 }} onClick={() => setStep(0)}>

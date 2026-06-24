@@ -8,23 +8,38 @@ export default function JobDetail() {
   const navigate = useNavigate();
   const [job, setJob] = useState(null);
   const [expenses, setExpenses] = useState([]);
+  const [variations, setVariations] = useState([]);
+  const [diaryEntries, setDiaryEntries] = useState([]);
+  const [photoCount, setPhotoCount] = useState(0);
 
   useEffect(() => {
-    async function load() {
-      const j = await db.jobs.get(id);
-      setJob(j);
-      if (j) {
-        const exps = await db.expenses.where('jobId').equals(id).toArray();
-        setExpenses(exps);
-      }
-    }
-    load();
+    loadJob();
   }, [id]);
+
+  async function loadJob() {
+    const j = await db.jobs.get(id);
+    setJob(j);
+    if (j) {
+      const [exps, vars, diary, photos] = await Promise.all([
+        db.expenses.where('jobId').equals(id).toArray(),
+        db.variations.where('jobId').equals(id).toArray(),
+        db.jobDiary.where('jobId').equals(id).toArray(),
+        db.jobPhotos.where('jobId').equals(id).count(),
+      ]);
+      setExpenses(exps);
+      setVariations(vars);
+      setDiaryEntries(diary.sort((a, b) => (a.date > b.date ? -1 : 1)));
+      setPhotoCount(photos);
+    }
+  }
 
   if (!job) return <div className="page"><p>Loading...</p></div>;
 
   const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const profit = (job.totalQuoted || 0) - totalExpenses;
+  const approvedVariations = variations.filter(v => v.status === 'approved');
+  const totalVariations = approvedVariations.reduce((s, v) => s + (v.amount || 0), 0);
+  const totalIncome = (job.totalQuoted || 0) + totalVariations;
+  const profit = totalIncome - totalExpenses;
 
   async function updateStatus(status) {
     const updates = { status, updatedAt: new Date().toISOString() };
@@ -34,12 +49,16 @@ export default function JobDetail() {
     setJob({ ...job, ...updates });
   }
 
+  const totalDiaryHours = diaryEntries.reduce((s, e) => s + (e.hoursWorked || 0), 0);
+
   return (
     <div className="page">
       <div className="page-header">
         <div>
           <h1>{job.jobNumber}</h1>
-          <span className={`badge badge-${job.status === 'in_progress' ? 'active' : job.status}`}>{job.status.replace('_', ' ')}</span>
+          <span className={`badge badge-${job.status === 'in_progress' ? 'active' : job.status}`}>
+            {job.status.replace('_', ' ')}
+          </span>
         </div>
         <button className="btn btn-secondary" onClick={() => navigate('/jobs')}>Back</button>
       </div>
@@ -47,15 +66,21 @@ export default function JobDetail() {
       <div className="stat-grid" style={{ marginBottom: 20 }}>
         <div className="stat-card">
           <span className="stat-card-label">Quoted</span>
-          <span className="stat-card-value money">{formatCents(job.totalQuoted)}</span>
+          <span className="stat-card-value money" style={{ fontSize: 20 }}>{formatCents(job.totalQuoted)}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-card-label">Variations</span>
+          <span className="stat-card-value money" style={{ fontSize: 20 }}>{formatCents(totalVariations)}</span>
         </div>
         <div className="stat-card">
           <span className="stat-card-label">Expenses</span>
-          <span className="stat-card-value money money-negative">{formatCents(totalExpenses)}</span>
+          <span className="stat-card-value money money-negative" style={{ fontSize: 20 }}>{formatCents(totalExpenses)}</span>
         </div>
         <div className="stat-card">
           <span className="stat-card-label">Profit</span>
-          <span className={`stat-card-value money ${profit >= 0 ? 'money-positive' : 'money-negative'}`}>{formatCents(profit)}</span>
+          <span className={`stat-card-value money ${profit >= 0 ? 'money-positive' : 'money-negative'}`} style={{ fontSize: 20 }}>
+            {formatCents(profit)}
+          </span>
         </div>
       </div>
 
@@ -63,18 +88,47 @@ export default function JobDetail() {
         <h3>Client</h3>
         <p>{job.clientName}</p>
         <p style={{ color: 'var(--color-text-secondary)' }}>{job.siteAddress}</p>
+        {job.startDate && <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 8 }}>Started: {job.startDate}</p>}
+        {job.endDate && <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Completed: {job.endDate}</p>}
+        {totalDiaryHours > 0 && <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Total Hours Logged: {totalDiaryHours.toFixed(1)}</p>}
       </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <div className="page-header">
-          <h2>Expenses ({expenses.length})</h2>
-          <button className="btn btn-secondary" onClick={() => navigate(`/expenses/new?jobId=${id}`)}>+ Add</button>
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr', marginBottom: 20 }}>
+        <div className="card card-clickable" onClick={() => navigate(`/variations?jobId=${id}`)}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 24, marginBottom: 4 }}>📋</div>
+            <div style={{ fontWeight: 600 }}>Variations</div>
+            <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{variations.length} total</div>
+          </div>
         </div>
-        {expenses.length === 0 ? (
-          <p style={{ color: 'var(--color-text-muted)' }}>No expenses logged for this job</p>
-        ) : (
+        <div className="card card-clickable" onClick={() => navigate(`/job-diary?jobId=${id}`)}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 24, marginBottom: 4 }}>📝</div>
+            <div style={{ fontWeight: 600 }}>Daily Diary</div>
+            <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{diaryEntries.length} entries</div>
+          </div>
+        </div>
+        <div className="card card-clickable" onClick={() => navigate(`/job-photos?jobId=${id}`)}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 24, marginBottom: 4 }}>📸</div>
+            <div style={{ fontWeight: 600 }}>Photos</div>
+            <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{photoCount} photos</div>
+          </div>
+        </div>
+        <div className="card card-clickable" onClick={() => navigate(`/expenses/new?jobId=${id}`)}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 24, marginBottom: 4 }}>💳</div>
+            <div style={{ fontWeight: 600 }}>Add Expense</div>
+            <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{expenses.length} logged</div>
+          </div>
+        </div>
+      </div>
+
+      {expenses.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <h2 style={{ marginBottom: 12 }}>Recent Expenses</h2>
           <div className="list-gap">
-            {expenses.map(e => (
+            {expenses.slice(0, 5).map(e => (
               <div key={e.id} className="card" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>{e.description || e.category}</div>
@@ -84,8 +138,28 @@ export default function JobDetail() {
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {diaryEntries.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <h2 style={{ marginBottom: 12 }}>Recent Diary</h2>
+          <div className="list-gap">
+            {diaryEntries.slice(0, 3).map(e => (
+              <div key={e.id} className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600 }}>{e.date}</span>
+                  <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                    {e.hoursWorked > 0 ? `${e.hoursWorked}hrs` : ''}
+                    {e.weatherConditions ? ` · ${e.weatherConditions}` : ''}
+                  </span>
+                </div>
+                {e.notes && <p style={{ fontSize: 14, color: 'var(--color-text-secondary)' }}>{e.notes}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
         {job.status === 'scheduled' && <button className="btn btn-primary btn-lg" onClick={() => updateStatus('in_progress')}>Start Job</button>}
