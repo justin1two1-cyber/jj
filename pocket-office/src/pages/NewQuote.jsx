@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
-import { db, getNextNumber, getAllSettings } from '../db';
+import { db, getNextNumber, getAllSettings, storePhoto } from '../db';
 import { calculateQuote } from '../utils/quoteEngine';
 import { formatCents } from '../utils/formatCurrency';
 import CameraInput from '../components/CameraInput';
@@ -117,6 +117,10 @@ export default function NewQuote() {
     const now = new Date().toISOString();
 
     const photoKeys = photos.map(() => `quote_photo_${uuid()}`);
+
+    for (let i = 0; i < photos.length; i++) {
+      await storePhoto(photoKeys[i], photos[i]);
+    }
 
     const quote = {
       id: uuid(),

@@ -1,15 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { db } from '../db';
+import { db, getPhoto } from '../db';
 import { formatCents } from '../utils/formatCurrency';
 
 export default function QuoteDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [quote, setQuote] = useState(null);
+  const [photoUrls, setPhotoUrls] = useState([]);
 
   useEffect(() => {
-    db.quotes.get(id).then(setQuote);
+    db.quotes.get(id).then(async (q) => {
+      setQuote(q);
+      if (q?.photos?.length > 0) {
+        const urls = [];
+        for (const key of q.photos) {
+          const blob = await getPhoto(key);
+          if (blob) urls.push(URL.createObjectURL(blob));
+        }
+        setPhotoUrls(urls);
+      }
+    });
+    return () => { photoUrls.forEach(u => URL.revokeObjectURL(u)); };
   }, [id]);
 
   if (!quote) return <div className="page"><p>Loading...</p></div>;
@@ -123,12 +135,42 @@ export default function QuoteDetail() {
         </div>
       </div>
 
+      {quote.notes && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 style={{ marginBottom: 8 }}>Notes</h3>
+          <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', whiteSpace: 'pre-wrap' }}>{quote.notes}</p>
+        </div>
+      )}
+
+      {photoUrls.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 style={{ marginBottom: 8 }}>Site Photos ({photoUrls.length})</h3>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {photoUrls.map((url, i) => (
+              <img key={i} src={url} alt={`Site ${i + 1}`}
+                style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
         {quote.status === 'draft' && <button className="btn btn-primary btn-lg" onClick={() => updateStatus('sent')}>Mark as Sent</button>}
         {quote.status === 'sent' && <button className="btn btn-success btn-lg" onClick={convertToJob}>Accept & Create Job</button>}
         {quote.status === 'sent' && <button className="btn btn-danger btn-lg" onClick={() => updateStatus('declined')}>Declined</button>}
         <button className="btn btn-secondary btn-lg" onClick={duplicateQuote}>Duplicate</button>
         <button className="btn btn-secondary btn-lg" onClick={shareQuote}>Share</button>
+        {quote.status === 'draft' && (
+          <button className="btn btn-danger btn-lg" onClick={async () => {
+            if (!confirm('Delete this quote?')) return;
+            if (quote.photos?.length) {
+              const { deletePhoto } = await import('../db');
+              for (const key of quote.photos) await deletePhoto(key);
+            }
+            await db.quotes.delete(id);
+            navigate('/quotes');
+          }}>Delete</button>
+        )}
       </div>
     </div>
   );

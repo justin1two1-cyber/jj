@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
-import { db } from '../db';
+import { db, storePhoto } from '../db';
 import { parseDollarsTocents } from '../utils/formatCurrency';
 
 const CATEGORIES = ['materials', 'fuel', 'tools', 'subcontractor', 'food', 'insurance', 'rego', 'other'];
@@ -11,6 +11,7 @@ export default function NewExpense() {
   const [searchParams] = useSearchParams();
   const presetJobId = searchParams.get('jobId') || '';
 
+  const [jobs, setJobs] = useState([]);
   const [form, setForm] = useState({
     description: '',
     amount: '',
@@ -24,6 +25,11 @@ export default function NewExpense() {
   });
 
   const [receiptPhoto, setReceiptPhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+
+  useEffect(() => {
+    db.jobs.where('status').anyOf('in_progress', 'scheduled').toArray().then(setJobs);
+  }, []);
 
   function update(field, value) {
     setForm(f => ({ ...f, [field]: value }));
@@ -32,8 +38,9 @@ export default function NewExpense() {
   async function handlePhoto(e) {
     const file = e.target.files?.[0];
     if (file) {
-      const blob = await file.arrayBuffer();
-      setReceiptPhoto(new Blob([blob], { type: file.type }));
+      const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+      setReceiptPhoto(blob);
+      setPhotoPreview(URL.createObjectURL(blob));
     }
   }
 
@@ -47,6 +54,7 @@ export default function NewExpense() {
     let receiptKey = null;
     if (receiptPhoto) {
       receiptKey = `receipt_${uuid()}`;
+      await storePhoto(receiptKey, receiptPhoto);
     }
 
     const expense = {
@@ -91,9 +99,12 @@ export default function NewExpense() {
         <div className="form-group">
           <label>Receipt Photo</label>
           <label className="btn btn-secondary btn-block" style={{ cursor: 'pointer' }}>
-            {receiptPhoto ? 'Photo captured' : 'Take Photo / Upload'}
+            {receiptPhoto ? 'Change Photo' : 'Take Photo / Upload'}
             <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{ display: 'none' }} />
           </label>
+          {photoPreview && (
+            <img src={photoPreview} alt="Receipt" style={{ width: '100%', maxWidth: 200, marginTop: 8, borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }} />
+          )}
         </div>
 
         <div className="form-group">
@@ -129,6 +140,16 @@ export default function NewExpense() {
             <label>Supplier</label>
             <input value={form.supplier} onChange={e => update('supplier', e.target.value)} placeholder="Bunnings, etc." />
           </div>
+        </div>
+
+        <div className="form-group">
+          <label>Link to Job</label>
+          <select value={form.jobId} onChange={e => update('jobId', e.target.value)}>
+            <option value="">No job (general expense)</option>
+            {jobs.map(j => (
+              <option key={j.id} value={j.id}>{j.jobNumber} - {j.clientName}</option>
+            ))}
+          </select>
         </div>
 
         <div className="form-row">

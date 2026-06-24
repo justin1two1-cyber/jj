@@ -25,8 +25,22 @@ db.version(1).stores({
   compliance: 'id, type, expiryDate, createdAt',
   swmsDocs: 'id, jobId, status, createdAt',
   swmsTemplates: 'id, name, category, isCustom',
-  counters: 'key'
+  counters: 'key',
+  photoBlobs: 'key',
 });
+
+export async function storePhoto(key, blob) {
+  await db.photoBlobs.put({ key, blob, storedAt: new Date().toISOString() });
+}
+
+export async function getPhoto(key) {
+  const row = await db.photoBlobs.get(key);
+  return row?.blob || null;
+}
+
+export async function deletePhoto(key) {
+  await db.photoBlobs.delete(key);
+}
 
 export async function getNextNumber(prefix) {
   const key = `counter_${prefix}`;

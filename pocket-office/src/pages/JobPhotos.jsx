@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
-import { db } from '../db';
+import { db, storePhoto, getPhoto, deletePhoto as deletePhotoBlob } from '../db';
 import CameraInput from '../components/CameraInput';
 
 const PHASES = ['before', 'during', 'after'];
@@ -27,16 +27,22 @@ export default function JobPhotos() {
       db.jobPhotos.where('jobId').equals(jobId).toArray(),
     ]);
     setJob(j);
-    setPhotos(p.sort((a, b) => (a.takenAt > b.takenAt ? -1 : 1)));
+    const withUrls = await Promise.all(p.map(async (photo) => {
+      const blob = await getPhoto(photo.photo);
+      return { ...photo, blobUrl: blob ? URL.createObjectURL(blob) : null };
+    }));
+    setPhotos(withUrls.sort((a, b) => (a.takenAt > b.takenAt ? -1 : 1)));
   }
 
   async function handleCapture(blob) {
     if (!blob) return;
     const now = new Date().toISOString();
+    const photoKey = `photo_${uuid()}`;
+    await storePhoto(photoKey, blob);
     const photo = {
       id: uuid(),
       jobId,
-      photo: `photo_${uuid()}`,
+      photo: photoKey,
       caption,
       phase: selectedPhase,
       takenAt: now,
@@ -48,8 +54,11 @@ export default function JobPhotos() {
     loadData();
   }
 
-  async function deletePhoto(photoId) {
+  async function handleDeletePhoto(photoId) {
     if (!confirm('Delete this photo?')) return;
+    const photo = photos.find(p => p.id === photoId);
+    if (photo?.photo) await deletePhotoBlob(photo.photo);
+    if (photo?.blobUrl) URL.revokeObjectURL(photo.blobUrl);
     await db.jobPhotos.delete(photoId);
     loadData();
   }
@@ -122,14 +131,19 @@ export default function JobPhotos() {
           {filtered.map(p => (
             <div key={p.id} className="card" style={{ padding: 8 }}>
               <div style={{
-                width: '100%', paddingBottom: '100%', background: 'var(--color-surface-hover)',
+                width: '100%', paddingBottom: '100%',
+                background: 'var(--color-surface-hover)',
                 borderRadius: 'var(--radius-sm)', marginBottom: 8,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                position: 'relative',
+                position: 'relative', overflow: 'hidden',
               }}>
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: 32 }}>
-                  📷
-                </div>
+                {p.blobUrl ? (
+                  <img src={p.blobUrl} alt={p.caption || 'Job photo'}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: 32 }}>
+                    📷
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className={`badge badge-${p.phase === 'before' ? 'sent' : p.phase === 'during' ? 'active' : 'accepted'}`}
@@ -137,7 +151,7 @@ export default function JobPhotos() {
                   {p.phase}
                 </span>
                 <button className="btn btn-secondary" style={{ padding: '2px 6px', fontSize: 11 }}
-                  onClick={() => deletePhoto(p.id)}>x</button>
+                  onClick={() => handleDeletePhoto(p.id)}>x</button>
               </div>
               {p.caption && <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>{p.caption}</div>}
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>

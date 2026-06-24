@@ -84,6 +84,16 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {(stats.monthIncome > 0 || stats.monthExpenses > 0) && (
+        <div className="card" style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontWeight: 600 }}>Net Profit This Month</span>
+          <span className={`money ${stats.monthIncome - stats.monthExpenses >= 0 ? 'money-positive' : 'money-negative'}`}
+            style={{ fontWeight: 700, fontSize: 20 }}>
+            {formatCents(stats.monthIncome - stats.monthExpenses)}
+          </span>
+        </div>
+      )}
+
       {expiryAlerts.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <h2 style={{ marginBottom: 12 }}>Expiry Alerts</h2>

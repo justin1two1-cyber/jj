@@ -7,20 +7,33 @@ export default function QuotesList() {
   const navigate = useNavigate();
   const [quotes, setQuotes] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
 
   useEffect(() => { loadQuotes(); }, [filter]);
 
   async function loadQuotes() {
-    let query = db.quotes.orderBy('createdAt').reverse();
-    const all = await query.toArray();
+    const all = await db.quotes.orderBy('createdAt').reverse().toArray();
     setQuotes(filter === 'all' ? all : all.filter(q => q.status === filter));
   }
+
+  const filtered = search
+    ? quotes.filter(q =>
+        (q.clientName || '').toLowerCase().includes(search.toLowerCase()) ||
+        (q.quoteNumber || '').toLowerCase().includes(search.toLowerCase()) ||
+        (q.siteAddress || '').toLowerCase().includes(search.toLowerCase())
+      )
+    : quotes;
 
   return (
     <div className="page">
       <div className="page-header">
         <h1>Quotes</h1>
         <button className="btn btn-primary" onClick={() => navigate('/quotes/new')}>+ New Quote</button>
+      </div>
+
+      <div className="form-group" style={{ marginBottom: 12 }}>
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search quotes..." style={{ padding: '10px 16px' }} />
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto' }}>
@@ -36,17 +49,19 @@ export default function QuotesList() {
         ))}
       </div>
 
-      {quotes.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">✎</div>
-          <p>{filter === 'all' ? 'No quotes yet' : `No ${filter} quotes`}</p>
-          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => navigate('/quotes/new')}>
-            Create Your First Quote
-          </button>
+          <p>{search ? 'No matching quotes' : filter === 'all' ? 'No quotes yet' : `No ${filter} quotes`}</p>
+          {!search && (
+            <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => navigate('/quotes/new')}>
+              Create Your First Quote
+            </button>
+          )}
         </div>
       ) : (
         <div className="list-gap">
-          {quotes.map(q => (
+          {filtered.map(q => (
             <div key={q.id} className="card card-clickable" onClick={() => navigate(`/quotes/${q.id}`)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>

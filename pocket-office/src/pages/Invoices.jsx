@@ -9,8 +9,18 @@ export default function Invoices() {
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    db.invoices.orderBy('createdAt').reverse().toArray().then(all => {
-      setInvoices(filter === 'all' ? all : all.filter(i => i.status === filter));
+    db.invoices.orderBy('createdAt').reverse().toArray().then(async (all) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const updated = [];
+      for (const inv of all) {
+        if (inv.status === 'sent' && inv.dateDue && inv.dateDue < today) {
+          await db.invoices.update(inv.id, { status: 'overdue' });
+          updated.push({ ...inv, status: 'overdue' });
+        } else {
+          updated.push(inv);
+        }
+      }
+      setInvoices(filter === 'all' ? updated : updated.filter(i => i.status === filter));
     });
   }, [filter]);
 

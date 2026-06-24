@@ -164,6 +164,9 @@ export default function JobDetail() {
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
         {job.status === 'scheduled' && <button className="btn btn-primary btn-lg" onClick={() => updateStatus('in_progress')}>Start Job</button>}
         {job.status === 'in_progress' && <button className="btn btn-success btn-lg" onClick={() => updateStatus('complete')}>Complete Job</button>}
+        {(job.status === 'complete' || job.status === 'in_progress') && (
+          <button className="btn btn-primary btn-lg" onClick={() => navigate(`/invoices/new?jobId=${id}`)}>Create Invoice</button>
+        )}
         {job.quoteId && <button className="btn btn-secondary btn-lg" onClick={() => navigate(`/quotes/${job.quoteId}`)}>View Quote</button>}
       </div>
     </div>

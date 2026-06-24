@@ -6,14 +6,28 @@ import { formatCents } from '../utils/formatCurrency';
 export default function Jobs() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    db.jobs.orderBy('createdAt').reverse().toArray().then(setJobs);
-  }, []);
+    db.jobs.orderBy('createdAt').reverse().toArray().then(all => {
+      setJobs(filter === 'all' ? all : all.filter(j => j.status === filter));
+    });
+  }, [filter]);
 
   return (
     <div className="page">
       <div className="page-header"><h1>Jobs</h1></div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto' }}>
+        {['all', 'scheduled', 'in_progress', 'complete'].map(f => (
+          <button key={f} className={`btn ${filter === f ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ padding: '6px 14px', fontSize: 13, flexShrink: 0 }}
+            onClick={() => setFilter(f)}>
+            {f === 'all' ? 'All' : f === 'in_progress' ? 'Active' : f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
+      </div>
+
       {jobs.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">⚒</div>

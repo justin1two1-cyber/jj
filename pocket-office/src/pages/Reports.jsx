@@ -88,11 +88,24 @@ export default function Reports() {
       };
     });
 
+    const timeByJob = {};
+    filteredTime.forEach(t => {
+      if (!timeByJob[t.jobId]) timeByJob[t.jobId] = { onSite: 0, travel: 0 };
+      timeByJob[t.jobId].onSite += t.onSiteMinutes || 0;
+      timeByJob[t.jobId].travel += t.travelMinutes || 0;
+    });
+
+    const jobTimeBreakdown = Object.entries(timeByJob).map(([jobId, times]) => {
+      const job = jobs.find(j => j.id === jobId);
+      return { jobId, jobNumber: job?.jobNumber || '?', clientName: job?.clientName || 'Unknown', ...times };
+    }).sort((a, b) => (b.onSite + b.travel) - (a.onSite + a.travel));
+
     setData({
       totalExpenses, totalGstPaid, totalIncome, totalGstCollected,
       expenseByCategory, totalKm, totalDeduction,
       totalOnSite, totalTravel, jobPnL,
       filteredExpenses, filteredMileage, filteredTime,
+      jobTimeBreakdown,
       netGst: totalGstCollected - totalGstPaid,
       profit: totalIncome - totalExpenses,
       activeJobs: jobs.filter(j => j.status === 'in_progress').length,
@@ -258,27 +271,44 @@ export default function Reports() {
         </div>
       )}
 
-      {reportType === 'expenses' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-            <h3>Expense Breakdown</h3>
-            <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 13 }}
-              onClick={exportExpensesCsv}>Export CSV</button>
-          </div>
-          <div className="list-gap">
-            {Object.entries(data.expenseByCategory || {}).sort((a, b) => b[1] - a[1]).map(([cat, amount]) => (
-              <div key={cat} className="card" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 600 }}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
-                <span className="money" style={{ fontWeight: 600 }}>{formatCents(amount)}</span>
+      {reportType === 'expenses' && (() => {
+        const entries = Object.entries(data.expenseByCategory || {}).sort((a, b) => b[1] - a[1]);
+        const maxAmount = entries.length > 0 ? Math.max(...entries.map(([, a]) => a)) : 1;
+        const catColors = { materials: '#3b82f6', fuel: '#f59e0b', tools: '#8b5cf6', subcontractor: '#06b6d4', food: '#f97316', insurance: '#22c55e', rego: '#ec4899', other: '#64748b' };
+        return (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3>Expense Breakdown</h3>
+              <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 13 }}
+                onClick={exportExpensesCsv}>Export CSV</button>
+            </div>
+            {entries.length > 0 && (
+              <div className="card" style={{ marginBottom: 16, padding: 20 }}>
+                {entries.map(([cat, amount]) => (
+                  <div key={cat} style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
+                      <span style={{ fontWeight: 600 }}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
+                      <span className="money">{formatCents(amount)}</span>
+                    </div>
+                    <div style={{ height: 8, background: 'var(--color-surface-hover)', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%', borderRadius: 4,
+                        width: `${(amount / maxAmount) * 100}%`,
+                        background: catColors[cat] || '#64748b',
+                        transition: 'width 0.3s',
+                      }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+              <span>Total</span>
+              <span className="money">{formatCents(data.totalExpenses)}</span>
+            </div>
           </div>
-          <div className="card" style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
-            <span>Total</span>
-            <span className="money">{formatCents(data.totalExpenses)}</span>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {reportType === 'gst' && (
         <div>
@@ -329,25 +359,48 @@ export default function Reports() {
         </div>
       )}
 
-      {reportType === 'time' && (
-        <div>
-          <h3 style={{ marginBottom: 12 }}>Time Analysis</h3>
-          <div className="stat-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-            <div className="stat-card">
-              <span className="stat-card-label">Entries</span>
-              <span className="stat-card-value">{(data.filteredTime || []).length}</span>
+      {reportType === 'time' && (() => {
+        const fmtMins = (mins) => { const h = Math.floor(mins / 60); const m = mins % 60; return h > 0 ? `${h}h ${m}m` : `${m}m`; };
+        return (
+          <div>
+            <h3 style={{ marginBottom: 12 }}>Time Analysis</h3>
+            <div className="stat-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 20 }}>
+              <div className="stat-card">
+                <span className="stat-card-label">Entries</span>
+                <span className="stat-card-value">{(data.filteredTime || []).length}</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-card-label">On-Site Hours</span>
+                <span className="stat-card-value">{(data.totalOnSite / 60).toFixed(1)}</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-card-label">Travel Hours</span>
+                <span className="stat-card-value">{(data.totalTravel / 60).toFixed(1)}</span>
+              </div>
             </div>
-            <div className="stat-card">
-              <span className="stat-card-label">On-Site Hours</span>
-              <span className="stat-card-value">{(data.totalOnSite / 60).toFixed(1)}</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-card-label">Travel Hours</span>
-              <span className="stat-card-value">{(data.totalTravel / 60).toFixed(1)}</span>
-            </div>
+            {(data.jobTimeBreakdown || []).length > 0 && (
+              <>
+                <h3 style={{ marginBottom: 12 }}>Time by Job</h3>
+                <div className="list-gap">
+                  {data.jobTimeBreakdown.map(j => (
+                    <div key={j.jobId} className="card">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{j.jobNumber} - {j.clientName}</div>
+                          <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                            On-site: {fmtMins(j.onSite)} · Travel: {fmtMins(j.travel)}
+                          </div>
+                        </div>
+                        <span style={{ fontWeight: 700, fontSize: 18 }}>{fmtMins(j.onSite + j.travel)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
