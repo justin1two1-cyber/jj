@@ -94,21 +94,21 @@ export default function JobDetail() {
       </div>
 
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr', marginBottom: 20 }}>
-        <div className="card card-clickable" onClick={() => navigate(`/variations?jobId=${id}`)}>
+        <div className="card card-clickable" onClick={() => navigate(`/jobs/${id}/variations`)}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 24, marginBottom: 4 }}>📋</div>
             <div style={{ fontWeight: 600 }}>Variations</div>
             <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{variations.length} total</div>
           </div>
         </div>
-        <div className="card card-clickable" onClick={() => navigate(`/job-diary?jobId=${id}`)}>
+        <div className="card card-clickable" onClick={() => navigate(`/jobs/${id}/diary`)}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 24, marginBottom: 4 }}>📝</div>
             <div style={{ fontWeight: 600 }}>Daily Diary</div>
             <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{diaryEntries.length} entries</div>
           </div>
         </div>
-        <div className="card card-clickable" onClick={() => navigate(`/job-photos?jobId=${id}`)}>
+        <div className="card card-clickable" onClick={() => navigate(`/jobs/${id}/photos`)}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 24, marginBottom: 4 }}>📸</div>
             <div style={{ fontWeight: 600 }}>Photos</div>

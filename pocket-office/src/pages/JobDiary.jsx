@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
 import { db } from '../db';
 import VoiceInput from '../components/VoiceInput';
@@ -7,8 +7,7 @@ import CameraInput from '../components/CameraInput';
 
 export default function JobDiary() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const jobId = searchParams.get('jobId');
+  const { id: jobId } = useParams();
   const [job, setJob] = useState(null);
   const [entries, setEntries] = useState([]);
   const [showForm, setShowForm] = useState(false);
