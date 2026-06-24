@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react';
-import { getAllSettings, setSetting } from '../db';
+import { v4 as uuid } from 'uuid';
+import { db, getAllSettings, setSetting } from '../db';
 
 export default function Settings() {
   const [settings, setSettings] = useState({});
   const [saved, setSaved] = useState(false);
+  const [locations, setLocations] = useState([]);
+  const [showLocationForm, setShowLocationForm] = useState(false);
+  const [locForm, setLocForm] = useState({ name: '', address: '', type: 'home', geofenceRadiusM: 100 });
 
-  useEffect(() => { getAllSettings().then(setSettings); }, []);
+  useEffect(() => {
+    getAllSettings().then(setSettings);
+    db.savedLocations.toArray().then(setLocations);
+  }, []);
 
   function update(key, value) {
     setSettings(s => ({ ...s, [key]: value }));
@@ -21,6 +28,47 @@ export default function Settings() {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
+
+  async function saveLocation() {
+    if (!locForm.name.trim()) { alert('Enter a name'); return; }
+
+    const loc = {
+      id: uuid(),
+      name: locForm.name,
+      address: locForm.address,
+      coords: null,
+      type: locForm.type,
+      geofenceRadiusM: parseInt(locForm.geofenceRadiusM) || 100,
+    };
+
+    if (navigator.geolocation && !locForm.address) {
+      try {
+        const pos = await new Promise((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject)
+        );
+        loc.coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        loc.address = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+      } catch { /* skip coords */ }
+    }
+
+    await db.savedLocations.add(loc);
+    setLocations(await db.savedLocations.toArray());
+    setLocForm({ name: '', address: '', type: 'home', geofenceRadiusM: 100 });
+    setShowLocationForm(false);
+  }
+
+  async function deleteLocation(id) {
+    if (!confirm('Delete this location?')) return;
+    await db.savedLocations.delete(id);
+    setLocations(await db.savedLocations.toArray());
+  }
+
+  const LOCATION_TYPES = [
+    { value: 'home', label: 'Home' },
+    { value: 'workshop', label: 'Workshop' },
+    { value: 'supplier', label: 'Supplier' },
+    { value: 'job_site', label: 'Job Site' },
+  ];
 
   return (
     <div className="page">
@@ -89,6 +137,64 @@ export default function Settings() {
           <label>Payment Terms (days)</label>
           <input type="number" value={settings.paymentTermsDays ?? ''} onChange={e => update('paymentTermsDays', parseInt(e.target.value || 0))} />
         </div>
+
+        <h3 style={{ margin: '24px 0 12px' }}>Saved Locations</h3>
+        <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 12 }}>
+          Set your home base and workshop for GPS auto-tracking
+        </p>
+
+        {locations.length > 0 && (
+          <div className="list-gap" style={{ marginBottom: 12 }}>
+            {locations.map(loc => (
+              <div key={loc.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{loc.name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                    {loc.type} · {loc.address || 'No address'} · {loc.geofenceRadiusM}m radius
+                  </div>
+                </div>
+                <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: 12 }}
+                  onClick={() => deleteLocation(loc.id)}>x</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showLocationForm ? (
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="form-group">
+              <label>Name</label>
+              <input value={locForm.name} onChange={e => setLocForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Home, Workshop, etc." />
+            </div>
+            <div className="form-group">
+              <label>Address (leave blank to use current GPS)</label>
+              <input value={locForm.address} onChange={e => setLocForm(f => ({ ...f, address: e.target.value }))}
+                placeholder="123 Street, Suburb VIC" />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Type</label>
+                <select value={locForm.type} onChange={e => setLocForm(f => ({ ...f, type: e.target.value }))}>
+                  {LOCATION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Geofence Radius (m)</label>
+                <input type="number" value={locForm.geofenceRadiusM}
+                  onChange={e => setLocForm(f => ({ ...f, geofenceRadiusM: e.target.value }))} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary" onClick={saveLocation}>Save Location</button>
+              <button className="btn btn-secondary" onClick={() => setShowLocationForm(false)}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <button className="btn btn-secondary" onClick={() => setShowLocationForm(true)} style={{ marginBottom: 16 }}>
+            + Add Location
+          </button>
+        )}
 
         <h3 style={{ margin: '24px 0 12px' }}>Data</h3>
         <div style={{ display: 'flex', gap: 12 }}>

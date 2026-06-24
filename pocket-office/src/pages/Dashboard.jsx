@@ -10,9 +10,11 @@ export default function Dashboard() {
     pendingQuotes: 0,
     monthExpenses: 0,
     monthIncome: 0,
+    overdueInvoices: 0,
   });
   const [recentQuotes, setRecentQuotes] = useState([]);
   const [recentExpenses, setRecentExpenses] = useState([]);
+  const [expiryAlerts, setExpiryAlerts] = useState([]);
 
   useEffect(() => {
     loadDashboard();
@@ -21,25 +23,37 @@ export default function Dashboard() {
   async function loadDashboard() {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const alertDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const today = now.toISOString().slice(0, 10);
 
-    const [activeJobs, pendingQuotes, expenses, quotes] = await Promise.all([
+    const [activeJobs, pendingQuotes, expenses, quotes, compliance, overdueInvoices] = await Promise.all([
       db.jobs.where('status').anyOf('in_progress', 'scheduled').count(),
       db.quotes.where('status').equals('sent').count(),
       db.expenses.where('date').aboveOrEqual(monthStart.slice(0, 10)).toArray(),
       db.quotes.orderBy('createdAt').reverse().limit(5).toArray(),
+      db.compliance.toArray(),
+      db.invoices.where('status').equals('overdue').count(),
     ]);
 
     const monthExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
-    const paidInvoices = await db.invoices
-      .where('status').equals('paid')
-      .toArray();
+    const paidInvoices = await db.invoices.where('status').equals('paid').toArray();
     const monthIncome = paidInvoices
       .filter(inv => inv.datePaid && inv.datePaid >= monthStart.slice(0, 10))
       .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
 
-    setStats({ activeJobs, pendingQuotes, monthExpenses, monthIncome });
+    setStats({ activeJobs, pendingQuotes, monthExpenses, monthIncome, overdueInvoices });
     setRecentQuotes(quotes);
+
+    const alerts = compliance
+      .filter(c => c.expiryDate && c.expiryDate <= alertDate)
+      .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+      .map(c => ({
+        ...c,
+        isExpired: c.expiryDate < today,
+        daysLeft: Math.ceil((new Date(c.expiryDate) - now) / (1000 * 60 * 60 * 24)),
+      }));
+    setExpiryAlerts(alerts);
 
     const recentExp = await db.expenses.orderBy('createdAt').reverse().limit(5).toArray();
     setRecentExpenses(recentExp);
@@ -69,6 +83,45 @@ export default function Dashboard() {
           <span className="stat-card-value money money-positive">{formatCents(stats.monthIncome)}</span>
         </div>
       </div>
+
+      {expiryAlerts.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ marginBottom: 12 }}>Expiry Alerts</h2>
+          <div className="list-gap">
+            {expiryAlerts.map(a => (
+              <div key={a.id} className="card card-clickable" onClick={() => navigate('/compliance')}
+                style={{ borderColor: a.isExpired ? 'var(--color-danger)' : 'var(--color-warning)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{a.name}</div>
+                    <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                      {a.type.replace(/_/g, ' ')} · Expires {a.expiryDate}
+                    </div>
+                  </div>
+                  <span className={`badge ${a.isExpired ? 'badge-declined' : 'badge-active'}`}>
+                    {a.isExpired ? 'EXPIRED' : `${a.daysLeft}d left`}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {stats.overdueInvoices > 0 && (
+        <div className="card card-clickable" onClick={() => navigate('/invoices')}
+          style={{ marginBottom: 20, borderColor: 'var(--color-danger)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>Overdue Invoices</div>
+              <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                {stats.overdueInvoices} invoice{stats.overdueInvoices > 1 ? 's' : ''} need{stats.overdueInvoices === 1 ? 's' : ''} attention
+              </div>
+            </div>
+            <span className="badge badge-overdue">Overdue</span>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
         <section>
