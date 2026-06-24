@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
-import { db } from '../db';
+import { db, storePhoto } from '../db';
 import { formatCents, parseDollarsTocents } from '../utils/formatCurrency';
 import { getAllSettings } from '../db';
 import VoiceInput from '../components/VoiceInput';
@@ -49,6 +49,15 @@ export default function Variations() {
     const varCount = variations.length + 1;
     const now = new Date().toISOString();
 
+    const photoKeys = [];
+    for (const blob of photos) {
+      if (blob) {
+        const key = `variation_${uuid()}`;
+        await storePhoto(key, blob);
+        photoKeys.push(key);
+      }
+    }
+
     const variation = {
       id: uuid(),
       jobId,
@@ -63,7 +72,7 @@ export default function Variations() {
       status: 'proposed',
       approvedBy: '',
       approvedDate: null,
-      photos: [],
+      photos: photoKeys,
       createdAt: now,
       syncedAt: null,
     };

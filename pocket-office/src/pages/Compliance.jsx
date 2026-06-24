@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
-import { db } from '../db';
+import { db, storePhoto } from '../db';
 import CameraInput from '../components/CameraInput';
 
 const TYPES = [
@@ -20,6 +20,7 @@ export default function Compliance() {
     type: 'builders_licence', name: '', number: '', provider: '',
     expiryDate: '', reminderDays: '30',
   });
+  const [docPhoto, setDocPhoto] = useState(null);
 
   useEffect(() => { loadItems(); }, []);
 
@@ -32,6 +33,12 @@ export default function Compliance() {
     if (!form.name.trim()) { alert('Please enter a name'); return; }
     const now = new Date().toISOString();
 
+    let documentPhoto = null;
+    if (docPhoto) {
+      documentPhoto = `compliance_${uuid()}`;
+      await storePhoto(documentPhoto, docPhoto);
+    }
+
     const item = {
       id: uuid(),
       type: form.type,
@@ -40,13 +47,14 @@ export default function Compliance() {
       provider: form.provider,
       expiryDate: form.expiryDate,
       reminderDays: parseInt(form.reminderDays) || 30,
-      documentPhoto: null,
+      documentPhoto,
       createdAt: now,
       syncedAt: null,
     };
 
     await db.compliance.add(item);
     setForm({ type: 'builders_licence', name: '', number: '', provider: '', expiryDate: '', reminderDays: '30' });
+    setDocPhoto(null);
     setShowForm(false);
     loadItems();
   }
@@ -142,7 +150,7 @@ export default function Compliance() {
           </div>
           <div className="form-group">
             <label>Document Photo</label>
-            <CameraInput onCapture={() => {}} label="Upload Document" />
+            <CameraInput onCapture={(blob) => { if (blob) setDocPhoto(blob); }} label="Upload Document" />
           </div>
           <button className="btn btn-primary btn-block" onClick={saveItem}>Save</button>
         </div>

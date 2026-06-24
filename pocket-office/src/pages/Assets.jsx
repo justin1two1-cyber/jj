@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
-import { db } from '../db';
+import { db, storePhoto } from '../db';
 import { formatCents, parseDollarsTocents } from '../utils/formatCurrency';
 import CameraInput from '../components/CameraInput';
 
@@ -22,6 +22,7 @@ export default function Assets() {
     purchasePrice: '', depreciationMethod: 'instant_write_off', effectiveLifeYears: '5',
     serialNumber: '', supplier: '',
   });
+  const [assetPhoto, setAssetPhoto] = useState(null);
 
   useEffect(() => { loadAssets(); }, [filter]);
 
@@ -59,6 +60,12 @@ export default function Assets() {
     const price = parseDollarsTocents(form.purchasePrice);
     const now = new Date().toISOString();
 
+    let photoKey = null;
+    if (assetPhoto) {
+      photoKey = `asset_${uuid()}`;
+      await storePhoto(photoKey, assetPhoto);
+    }
+
     const asset = {
       id: uuid(),
       name: form.name,
@@ -70,7 +77,7 @@ export default function Assets() {
       currentValue: form.depreciationMethod === 'instant_write_off' ? 0 : price,
       serialNumber: form.serialNumber,
       supplier: form.supplier,
-      photo: null,
+      photo: photoKey,
       createdAt: now,
       syncedAt: null,
     };
@@ -79,6 +86,7 @@ export default function Assets() {
     setForm({ name: '', category: 'power tools', purchaseDate: new Date().toISOString().slice(0, 10),
       purchasePrice: '', depreciationMethod: 'instant_write_off', effectiveLifeYears: '5',
       serialNumber: '', supplier: '' });
+    setAssetPhoto(null);
     setShowForm(false);
     loadAssets();
   }
@@ -183,7 +191,7 @@ export default function Assets() {
           </div>
           <div className="form-group">
             <label>Photo</label>
-            <CameraInput onCapture={() => {}} label="Add Photo" />
+            <CameraInput onCapture={(blob) => { if (blob) setAssetPhoto(blob); }} label="Add Photo" />
           </div>
           <button className="btn btn-primary btn-block" onClick={saveAsset}>Save Asset</button>
         </div>

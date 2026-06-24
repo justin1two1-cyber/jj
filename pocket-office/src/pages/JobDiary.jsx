@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
-import { db } from '../db';
+import { db, storePhoto } from '../db';
 import VoiceInput from '../components/VoiceInput';
 import CameraInput from '../components/CameraInput';
 
@@ -41,6 +41,15 @@ export default function JobDiary() {
     }
 
     const now = new Date().toISOString();
+    const photoKeys = [];
+    for (const blob of photos) {
+      if (blob) {
+        const key = `diary_${uuid()}`;
+        await storePhoto(key, blob);
+        photoKeys.push(key);
+      }
+    }
+
     const entry = {
       id: uuid(),
       jobId,
@@ -49,7 +58,7 @@ export default function JobDiary() {
       hoursWorked: parseFloat(form.hoursWorked) || 0,
       crewCount: parseInt(form.crewCount) || 1,
       weatherConditions: form.weatherConditions,
-      photos: [],
+      photos: photoKeys,
       createdAt: now,
       syncedAt: null,
     };
