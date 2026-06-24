@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react';
 
+const STORE_DATA = [
+  { name: 'Bunnings Warehouse', types: ['timber', 'fixings', 'concrete', 'roofing', 'fencing', 'general', 'tools', 'paint', 'screws', 'plumbing'] },
+  { name: 'Mitre 10', types: ['timber', 'fixings', 'concrete', 'general', 'tools', 'screws'] },
+  { name: 'Total Tools', types: ['tools', 'fixings', 'safety'] },
+  { name: 'Bowens Timber', types: ['timber', 'decking', 'fencing'] },
+  { name: 'Stratco', types: ['roofing', 'fencing', 'steel'] },
+  { name: 'Tradelink', types: ['plumbing', 'bathroom'] },
+  { name: 'Reece Plumbing', types: ['plumbing', 'bathroom', 'tiles'] },
+  { name: 'Beaumont Tiles', types: ['tiles', 'bathroom'] },
+  { name: 'Dulux Trade Centre', types: ['paint'] },
+  { name: 'Masters Home Improvement', types: ['timber', 'tools', 'general', 'paint', 'concrete'] },
+];
+
 export default function SupplierFinder() {
   const [search, setSearch] = useState('');
   const [location, setLocation] = useState(null);
@@ -7,6 +20,7 @@ export default function SupplierFinder() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sortBy, setSortBy] = useState('distance');
+  const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -17,54 +31,94 @@ export default function SupplierFinder() {
     }
   }, []);
 
+  function matchingStores(query) {
+    const q = query.toLowerCase();
+    return STORE_DATA.filter(store =>
+      store.name.toLowerCase().includes(q) ||
+      store.types.some(t => q.includes(t)) ||
+      q.includes('hardware') || q.includes('building') || q.includes('supplies')
+    );
+  }
+
+  function fallbackSearch(query) {
+    const matched = matchingStores(query);
+    const stores = (matched.length > 0 ? matched : STORE_DATA).map((store, i) => ({
+      ...store,
+      id: `mock-${i}`,
+      distance: location ? (1.5 + Math.random() * 18).toFixed(1) : null,
+      address: `${Math.floor(Math.random() * 400) + 1} ${['Main', 'High', 'Station', 'Industrial', 'Trade'][i % 5]} ${['St', 'Rd', 'Ave'][i % 3]}, ${['Melbourne', 'Sydney', 'Brisbane', 'Perth', 'Adelaide'][i % 5]}`,
+      phone: null,
+      rating: (3.5 + Math.random() * 1.5).toFixed(1),
+      isOpen: true,
+      isLive: false,
+    }));
+    if (sortBy === 'distance' && location) {
+      stores.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+    } else {
+      stores.sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating));
+    }
+    return stores;
+  }
+
   async function searchSuppliers() {
     if (!search.trim()) return;
     setLoading(true);
 
-    const hardwareStores = [
-      { name: 'Bunnings Warehouse', types: ['timber', 'fixings', 'concrete', 'roofing', 'fencing', 'general', 'tools', 'paint'], rating: 4.2 },
-      { name: 'Mitre 10', types: ['timber', 'fixings', 'concrete', 'general', 'tools'], rating: 4.0 },
-      { name: 'Total Tools', types: ['tools', 'fixings', 'safety'], rating: 4.5 },
-      { name: 'Sydney Build Supplies', types: ['timber', 'concrete', 'roofing', 'fencing'], rating: 4.1 },
-      { name: 'Bowens Timber', types: ['timber', 'decking', 'fencing'], rating: 4.3 },
-      { name: 'Stratco', types: ['roofing', 'fencing', 'steel'], rating: 4.0 },
-      { name: 'PlaceMakers', types: ['timber', 'fixings', 'concrete', 'general'], rating: 3.9 },
-      { name: 'Tradelink', types: ['plumbing', 'bathroom'], rating: 4.1 },
-      { name: 'Reece Plumbing', types: ['plumbing', 'bathroom', 'tiles'], rating: 4.4 },
-      { name: 'Beaumont Tiles', types: ['tiles', 'bathroom'], rating: 4.2 },
-    ];
+    if (apiKey && apiKey !== 'your_api_key_here' && location) {
+      try {
+        const storeNames = matchingStores(search);
+        const searchTerm = storeNames.length > 0 ? storeNames[0].name : `${search} building supplies`;
+        const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${location.lat},${location.lng}&radius=25000&keyword=${encodeURIComponent(searchTerm)}&key=${apiKey}`;
+        const res = await fetch(url);
+        const data = await res.json();
 
-    const searchLower = search.toLowerCase();
-    const matched = hardwareStores.filter(store =>
-      store.name.toLowerCase().includes(searchLower) ||
-      store.types.some(t => searchLower.includes(t)) ||
-      searchLower.includes('hardware') ||
-      searchLower.includes('building') ||
-      searchLower.includes('supplies')
-    );
-
-    const withDistance = (matched.length > 0 ? matched : hardwareStores).map((store, i) => ({
-      ...store,
-      id: i,
-      distance: location ? (2 + Math.random() * 20).toFixed(1) : null,
-      address: `${Math.floor(Math.random() * 500) + 1} ${['Main', 'High', 'Station', 'Industrial', 'Trade'][i % 5]} ${['St', 'Rd', 'Ave', 'Dr'][i % 4]}`,
-      phone: `(0${Math.floor(Math.random() * 9) + 1}) ${String(Math.floor(Math.random() * 9000) + 1000)} ${String(Math.floor(Math.random() * 9000) + 1000)}`,
-      isOpen: Math.random() > 0.2,
-    }));
-
-    if (sortBy === 'distance' && location) {
-      withDistance.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
-    } else {
-      withDistance.sort((a, b) => b.rating - a.rating);
+        if (data.results?.length > 0) {
+          const live = data.results.slice(0, 10).map((place, i) => ({
+            id: place.place_id || `live-${i}`,
+            name: place.name,
+            address: place.vicinity || '',
+            distance: location ? calcDistance(location.lat, location.lng, place.geometry.location.lat, place.geometry.location.lng).toFixed(1) : null,
+            rating: place.rating || 0,
+            phone: null,
+            isOpen: place.opening_hours?.open_now ?? true,
+            types: place.types || [],
+            isLive: true,
+          }));
+          if (sortBy === 'distance') live.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+          else live.sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating));
+          setResults(live);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // Fall through to mock data
+      }
     }
 
-    setResults(withDistance);
+    setResults(fallbackSearch(search));
     setLoading(false);
+  }
+
+  function calcDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
   function openDirections(store) {
     const q = encodeURIComponent(`${store.name} ${store.address}`);
     window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank');
+  }
+
+  function handleQuickSearch(q) {
+    setSearch(q);
+    setTimeout(() => {
+      setSearch(q);
+      const input = document.querySelector('input[placeholder*="What do you need"]');
+      if (input) input.value = q;
+    }, 0);
   }
 
   return (
@@ -93,9 +147,9 @@ export default function SupplierFinder() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {['timber', 'screws', 'concrete', 'roofing', 'tools', 'plumbing', 'tiles'].map(q => (
+        {['timber', 'screws', 'concrete', 'roofing', 'tools', 'plumbing', 'tiles', 'paint'].map(q => (
           <button key={q} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 13 }}
-            onClick={() => { setSearch(q); setTimeout(searchSuppliers, 0); }}>
+            onClick={() => { setSearch(q); }}>
             {q}
           </button>
         ))}
@@ -103,15 +157,20 @@ export default function SupplierFinder() {
 
       {results.length > 0 && (
         <>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'flex-end' }}>
-            <button className={`btn ${sortBy === 'distance' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '6px 12px', fontSize: 13 }} onClick={() => setSortBy('distance')}>
-              By Distance
-            </button>
-            <button className={`btn ${sortBy === 'rating' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '6px 12px', fontSize: 13 }} onClick={() => setSortBy('rating')}>
-              By Rating
-            </button>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+              {results[0]?.isLive ? 'Live results' : 'Sample results — add Google Places API key for live data'}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className={`btn ${sortBy === 'distance' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '6px 12px', fontSize: 13 }} onClick={() => setSortBy('distance')}>
+                Distance
+              </button>
+              <button className={`btn ${sortBy === 'rating' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '6px 12px', fontSize: 13 }} onClick={() => setSortBy('rating')}>
+                Rating
+              </button>
+            </div>
           </div>
 
           <div className="list-gap">
@@ -124,14 +183,11 @@ export default function SupplierFinder() {
                       {store.address}
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 4 }}>
-                      {'★'.repeat(Math.floor(store.rating))} {store.rating}
-                      {store.distance && ` · ${store.distance} km away`}
+                      {'★'.repeat(Math.floor(parseFloat(store.rating)))} {store.rating}
+                      {store.distance && ` · ${store.distance} km`}
                       <span style={{ color: store.isOpen ? 'var(--color-success)' : 'var(--color-danger)' }}>
                         {' · '}{store.isOpen ? 'Open' : 'Closed'}
                       </span>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>
-                      {store.types.slice(0, 4).join(', ')}
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -139,10 +195,12 @@ export default function SupplierFinder() {
                       onClick={() => openDirections(store)}>
                       Directions
                     </button>
-                    <a href={`tel:${store.phone}`} className="btn btn-secondary"
-                      style={{ padding: '8px 14px', fontSize: 13, textAlign: 'center' }}>
-                      Call
-                    </a>
+                    {store.phone && (
+                      <a href={`tel:${store.phone}`} className="btn btn-secondary"
+                        style={{ padding: '8px 14px', fontSize: 13, textAlign: 'center' }}>
+                        Call
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
@@ -158,9 +216,11 @@ export default function SupplierFinder() {
           <p style={{ fontSize: 14, marginTop: 8 }}>
             Type what you need and we'll find the nearest suppliers
           </p>
-          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>
-            Connect a Google Places API key in settings for live results
-          </p>
+          {(!apiKey || apiKey === 'your_api_key_here') && (
+            <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 8 }}>
+              Add a Google Places API key in .env for live supplier results
+            </p>
+          )}
         </div>
       )}
     </div>

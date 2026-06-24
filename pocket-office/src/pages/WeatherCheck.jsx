@@ -1,5 +1,44 @@
 import { useState } from 'react';
 
+const WMO_CODES = {
+  0: 'Clear Sky', 1: 'Mainly Clear', 2: 'Partly Cloudy', 3: 'Overcast',
+  45: 'Fog', 48: 'Rime Fog',
+  51: 'Light Drizzle', 53: 'Moderate Drizzle', 55: 'Dense Drizzle',
+  61: 'Light Rain', 63: 'Moderate Rain', 65: 'Heavy Rain',
+  71: 'Light Snow', 73: 'Moderate Snow', 75: 'Heavy Snow',
+  80: 'Light Showers', 81: 'Moderate Showers', 82: 'Heavy Showers',
+  95: 'Thunderstorm', 96: 'Thunderstorm + Hail', 99: 'Thunderstorm + Heavy Hail',
+};
+
+function getWeatherIcon(code) {
+  if (code <= 1) return '☀';
+  if (code === 2) return '⛅';
+  if (code === 3) return '☁';
+  if (code <= 48) return '🌫';
+  if (code <= 55) return '🌦';
+  if (code <= 65) return '🌧';
+  if (code <= 75) return '❄';
+  if (code <= 82) return '🌧';
+  return '⛈';
+}
+
+async function geocode(query) {
+  const res = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`
+  );
+  const data = await res.json();
+  if (!data.results?.length) return null;
+  const r = data.results[0];
+  return { lat: r.latitude, lng: r.longitude, name: r.name + (r.admin1 ? `, ${r.admin1}` : '') };
+}
+
+async function fetchForecast(lat, lng) {
+  const res = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=auto&forecast_days=3`
+  );
+  return res.json();
+}
+
 export default function WeatherCheck() {
   const [location, setLocation] = useState('');
   const [forecast, setForecast] = useState(null);
@@ -7,59 +46,58 @@ export default function WeatherCheck() {
   const [error, setError] = useState('');
 
   async function checkWeather() {
-    if (!location.trim()) {
-      if (navigator.geolocation) {
-        setLoading(true);
-        navigator.geolocation.getCurrentPosition(
-          (pos) => generateMockForecast(`Lat ${pos.coords.latitude.toFixed(2)}, Lng ${pos.coords.longitude.toFixed(2)}`),
-          () => { setError('Enable GPS or enter a location'); setLoading(false); }
-        );
-      } else {
-        setError('Please enter a location');
-      }
-      return;
-    }
-    setLoading(true);
-    generateMockForecast(location);
-  }
-
-  function generateMockForecast(loc) {
-    const conditions = ['Sunny', 'Partly Cloudy', 'Cloudy', 'Light Rain', 'Heavy Rain', 'Storms', 'Windy'];
-    const days = [];
-    for (let i = 0; i < 3; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() + i);
-      const condition = conditions[Math.floor(Math.random() * conditions.length)];
-      const high = Math.floor(Math.random() * 15) + 18;
-      const low = high - Math.floor(Math.random() * 8) - 5;
-      const rainChance = condition.includes('Rain') || condition.includes('Storm') ? Math.floor(Math.random() * 50) + 50 : Math.floor(Math.random() * 30);
-      const wind = Math.floor(Math.random() * 30) + 5;
-
-      days.push({
-        date: date.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }),
-        condition,
-        high,
-        low,
-        rainChance,
-        wind,
-        workSafe: !condition.includes('Storm') && !condition.includes('Heavy') && wind < 40,
-      });
-    }
-
-    setForecast({ location: loc, days });
-    setLoading(false);
     setError('');
-  }
+    setLoading(true);
 
-  function getWeatherIcon(condition) {
-    if (condition.includes('Sunny')) return '☀';
-    if (condition.includes('Partly')) return '⛅';
-    if (condition.includes('Cloudy')) return '☁';
-    if (condition.includes('Light Rain')) return '🌦';
-    if (condition.includes('Heavy Rain')) return '🌧';
-    if (condition.includes('Storm')) return '⛈';
-    if (condition.includes('Windy')) return '💨';
-    return '☀';
+    try {
+      let lat, lng, locName;
+
+      if (!location.trim()) {
+        if (!navigator.geolocation) {
+          setError('Please enter a location');
+          setLoading(false);
+          return;
+        }
+        const pos = await new Promise((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject)
+        );
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+        locName = `${lat.toFixed(2)}°S, ${lng.toFixed(2)}°E`;
+      } else {
+        const geo = await geocode(location);
+        if (!geo) {
+          setError('Location not found. Try a city or suburb name.');
+          setLoading(false);
+          return;
+        }
+        lat = geo.lat;
+        lng = geo.lng;
+        locName = geo.name;
+      }
+
+      const data = await fetchForecast(lat, lng);
+      const days = data.daily.time.map((date, i) => {
+        const code = data.daily.weather_code[i];
+        const wind = data.daily.wind_speed_10m_max[i];
+        const condition = WMO_CODES[code] || 'Unknown';
+        return {
+          date: new Date(date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }),
+          code,
+          condition,
+          high: Math.round(data.daily.temperature_2m_max[i]),
+          low: Math.round(data.daily.temperature_2m_min[i]),
+          rainChance: data.daily.precipitation_probability_max[i],
+          wind: Math.round(wind),
+          workSafe: code < 95 && wind < 40,
+        };
+      });
+
+      setForecast({ location: locName, days });
+    } catch {
+      setError('Could not fetch weather. Check your connection and try again.');
+    }
+    setLoading(false);
   }
 
   return (
@@ -72,7 +110,7 @@ export default function WeatherCheck() {
         <input
           value={location}
           onChange={e => setLocation(e.target.value)}
-          placeholder="Enter job site address or use GPS"
+          placeholder="Enter suburb or city, or use GPS"
           onKeyDown={e => e.key === 'Enter' && checkWeather()}
           style={{ flex: 1 }}
         />
@@ -97,7 +135,7 @@ export default function WeatherCheck() {
             {forecast.days.map((day, i) => (
               <div key={i} className="card" style={{ textAlign: 'center' }}>
                 <div style={{ fontWeight: 600, marginBottom: 8 }}>{day.date}</div>
-                <div style={{ fontSize: 48, marginBottom: 8 }}>{getWeatherIcon(day.condition)}</div>
+                <div style={{ fontSize: 48, marginBottom: 8 }}>{getWeatherIcon(day.code)}</div>
                 <div style={{ fontWeight: 600, fontSize: 16 }}>{day.condition}</div>
                 <div style={{ margin: '12px 0', display: 'flex', justifyContent: 'center', gap: 16 }}>
                   <div>
@@ -126,8 +164,8 @@ export default function WeatherCheck() {
 
           <div className="card" style={{ marginTop: 20 }}>
             <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-              Weather data is simulated. Connect a weather API key in settings for live forecasts.
-              Always check conditions on-site before starting work, especially for heights, roofing, and outdoor concrete pours.
+              Powered by Open-Meteo. Always check conditions on-site before starting work,
+              especially for heights, roofing, and outdoor concrete pours.
             </p>
           </div>
         </>
@@ -137,7 +175,7 @@ export default function WeatherCheck() {
         <div className="empty-state">
           <div className="empty-state-icon">🌤</div>
           <p>Check the weather before heading to site</p>
-          <p style={{ fontSize: 14, marginTop: 8 }}>Enter a job site address or use your GPS location</p>
+          <p style={{ fontSize: 14, marginTop: 8 }}>Enter a suburb name or use GPS for your current location</p>
         </div>
       )}
     </div>

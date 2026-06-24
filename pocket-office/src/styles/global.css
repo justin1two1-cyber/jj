@@ -304,3 +304,8 @@ input::placeholder, textarea::placeholder {
 @media (min-width: 1024px) {
   .page-header h1 { font-size: 28px; }
 }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
