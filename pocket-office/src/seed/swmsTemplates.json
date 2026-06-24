@@ -1,0 +1,126 @@
+[
+  {
+    "id": "swms_heights",
+    "name": "Working at Heights",
+    "category": "heights",
+    "hazards": [
+      { "hazard": "Falls from height", "risk": "high", "consequence": "Serious injury or death" },
+      { "hazard": "Falling objects", "risk": "medium", "consequence": "Injury to workers below" },
+      { "hazard": "Unstable work platform", "risk": "medium", "consequence": "Falls, injury" }
+    ],
+    "controls": [
+      "Use scaffolding or EWP where possible",
+      "Install edge protection / guardrails",
+      "Use fall arrest harness when guardrails not practical",
+      "Secure tools and materials to prevent falling objects",
+      "Inspect ladders and scaffolding before use",
+      "Maintain 3 points of contact on ladders",
+      "Exclusion zone below work area"
+    ],
+    "ppe": ["Hard hat", "Safety harness", "Non-slip footwear", "Safety glasses"]
+  },
+  {
+    "id": "swms_demolition",
+    "name": "Demolition Work",
+    "category": "demolition",
+    "hazards": [
+      { "hazard": "Structural collapse", "risk": "high", "consequence": "Serious injury or death" },
+      { "hazard": "Asbestos exposure", "risk": "high", "consequence": "Long-term illness" },
+      { "hazard": "Flying debris", "risk": "medium", "consequence": "Eye / body injuries" },
+      { "hazard": "Dust inhalation", "risk": "medium", "consequence": "Respiratory illness" },
+      { "hazard": "Noise exposure", "risk": "medium", "consequence": "Hearing damage" }
+    ],
+    "controls": [
+      "Check for asbestos before any demolition - engage licensed assessor if suspected",
+      "Isolate all services (power, gas, water) before work",
+      "Establish exclusion zone around demolition area",
+      "Demolish from top down",
+      "Use water spray to suppress dust",
+      "Shore up adjacent structures as needed",
+      "Remove debris regularly - do not allow accumulation"
+    ],
+    "ppe": ["Hard hat", "Safety glasses", "P2 dust mask", "Hearing protection", "Steel-cap boots", "Gloves"]
+  },
+  {
+    "id": "swms_excavation",
+    "name": "Excavation & Trenching",
+    "category": "excavation",
+    "hazards": [
+      { "hazard": "Trench collapse", "risk": "high", "consequence": "Burial, serious injury or death" },
+      { "hazard": "Underground services strike", "risk": "high", "consequence": "Electrocution, gas explosion" },
+      { "hazard": "Plant / vehicle contact", "risk": "medium", "consequence": "Serious injury" },
+      { "hazard": "Falling into excavation", "risk": "medium", "consequence": "Injury" }
+    ],
+    "controls": [
+      "Dial Before You Dig - obtain service plans",
+      "Hand dig within 500mm of known services",
+      "Shore or batter trenches deeper than 1.5m",
+      "Barricade open excavations",
+      "Keep spoil minimum 1m from trench edge",
+      "Provide safe entry/exit (ladder every 9m)",
+      "Spotter for all plant operations near excavation"
+    ],
+    "ppe": ["Hard hat", "Hi-vis vest", "Steel-cap boots", "Safety glasses", "Gloves"]
+  },
+  {
+    "id": "swms_electrical",
+    "name": "Electrical Work (General)",
+    "category": "electrical",
+    "hazards": [
+      { "hazard": "Electric shock / electrocution", "risk": "high", "consequence": "Serious injury or death" },
+      { "hazard": "Arc flash", "risk": "medium", "consequence": "Burns, fire" },
+      { "hazard": "Fire from electrical fault", "risk": "medium", "consequence": "Property damage, injury" }
+    ],
+    "controls": [
+      "Only licensed electricians to perform electrical work",
+      "Isolate and tag out circuits before work",
+      "Test for dead before touching",
+      "Use insulated tools rated for voltage",
+      "RCD protection on all circuits",
+      "Do not work on live equipment unless absolutely necessary and risk assessed"
+    ],
+    "ppe": ["Insulated gloves", "Safety glasses", "Non-conductive footwear"]
+  },
+  {
+    "id": "swms_hot_works",
+    "name": "Hot Works (Welding, Grinding, Cutting)",
+    "category": "hot_works",
+    "hazards": [
+      { "hazard": "Burns from sparks / hot metal", "risk": "high", "consequence": "Burns" },
+      { "hazard": "Fire from sparks", "risk": "high", "consequence": "Property damage, injury" },
+      { "hazard": "UV radiation (welding)", "risk": "medium", "consequence": "Eye damage, skin burns" },
+      { "hazard": "Fume inhalation", "risk": "medium", "consequence": "Respiratory illness" }
+    ],
+    "controls": [
+      "Clear combustible materials from 10m radius",
+      "Fire extinguisher within 5m of work area",
+      "Fire watch for 30 minutes after hot works cease",
+      "Welding screens to protect others from UV",
+      "Adequate ventilation or extraction for fumes",
+      "Hot work permit if required by site"
+    ],
+    "ppe": ["Welding helmet / shade 10+ lens", "Leather welding gloves", "Leather apron", "Steel-cap boots", "Long sleeves (cotton)"]
+  },
+  {
+    "id": "swms_general_construction",
+    "name": "General Construction",
+    "category": "general",
+    "hazards": [
+      { "hazard": "Manual handling injuries", "risk": "medium", "consequence": "Back / muscle strain" },
+      { "hazard": "Slips, trips, falls", "risk": "medium", "consequence": "Sprains, fractures" },
+      { "hazard": "Noise exposure", "risk": "medium", "consequence": "Hearing damage" },
+      { "hazard": "UV exposure", "risk": "low", "consequence": "Sunburn, skin cancer" },
+      { "hazard": "Cuts and abrasions", "risk": "low", "consequence": "Minor injuries" }
+    ],
+    "controls": [
+      "Maintain good housekeeping - clear walkways",
+      "Use mechanical aids for heavy lifting where possible",
+      "Team lift items over 20kg",
+      "Keep work area well lit",
+      "Secure loose materials and cables",
+      "Apply sunscreen, wear hat and long sleeves outdoors",
+      "First aid kit accessible on site at all times"
+    ],
+    "ppe": ["Hard hat", "Safety glasses", "Steel-cap boots", "Hi-vis vest", "Hearing protection", "Gloves"]
+  }
+]

@@ -1,0 +1,205 @@
+[
+  {
+    "id": "tmpl_timber_deck",
+    "name": "Timber Deck",
+    "category": "decking",
+    "description": "Standard timber deck build with posts, bearers, joists, and decking boards",
+    "measurementFields": [
+      { "name": "length", "label": "Deck Length", "unit": "m", "required": true },
+      { "name": "width", "label": "Deck Width", "unit": "m", "required": true },
+      { "name": "height", "label": "Height from Ground", "unit": "m", "required": true, "default": 0.6 },
+      { "name": "steps", "label": "Number of Steps", "unit": "count", "required": false, "default": 0 }
+    ],
+    "defaultMaterials": [
+      { "materialId": "decking_board_140", "qtyFormula": "ceil((area / 0.14) * wasteFactor)", "wasteFactor": 1.1 },
+      { "materialId": "joist_90x45", "qtyFormula": "ceil(length / 0.45) * width", "wasteFactor": 1.05 },
+      { "materialId": "bearer_140x45", "qtyFormula": "ceil(width / 1.8) * length", "wasteFactor": 1.05 },
+      { "materialId": "post_100x100", "qtyFormula": "ceil(length / 1.8) * ceil(width / 1.8)", "wasteFactor": 1.0 },
+      { "materialId": "concrete_20kg", "qtyFormula": "posts * 2", "wasteFactor": 1.0 },
+      { "materialId": "coach_bolt_m10", "qtyFormula": "posts * 4", "wasteFactor": 1.0 },
+      { "materialId": "screw_10g_50mm", "qtyFormula": "ceil(area * 20 / 500)", "wasteFactor": 1.0 },
+      { "materialId": "joist_hanger", "qtyFormula": "ceil(length / 0.45) * ceil(width / 1.8)", "wasteFactor": 1.0 }
+    ],
+    "labourFormula": "area * 1.5 + steps * 2",
+    "consumablesPercent": 5
+  },
+  {
+    "id": "tmpl_timber_fence",
+    "name": "Timber Paling Fence",
+    "category": "fencing",
+    "description": "Standard 1.8m timber paling fence with posts, rails, and palings",
+    "measurementFields": [
+      { "name": "length", "label": "Total Fence Length", "unit": "m", "required": true },
+      { "name": "height", "label": "Fence Height", "unit": "m", "required": false, "default": 1.8 },
+      { "name": "gates", "label": "Number of Gates", "unit": "count", "required": false, "default": 0 }
+    ],
+    "defaultMaterials": [
+      { "materialId": "post_90x90", "qtyFormula": "ceil(length / 2.4) + 1 + gates", "wasteFactor": 1.0 },
+      { "materialId": "rail_70x35", "qtyFormula": "ceil(length / 2.4) * 3 * 2.4", "wasteFactor": 1.05 },
+      { "materialId": "paling_150x12", "qtyFormula": "ceil(length / 0.155)", "wasteFactor": 1.05 },
+      { "materialId": "concrete_20kg", "qtyFormula": "(ceil(length / 2.4) + 1 + gates) * 2", "wasteFactor": 1.0 },
+      { "materialId": "nail_75mm_framing", "qtyFormula": "ceil(length / 50)", "wasteFactor": 1.0 }
+    ],
+    "labourFormula": "length * 0.5 + gates * 2",
+    "consumablesPercent": 3
+  },
+  {
+    "id": "tmpl_colorbond_fence",
+    "name": "Colorbond Fence",
+    "category": "fencing",
+    "description": "Standard 1.8m colorbond steel fence with steel posts and rails",
+    "measurementFields": [
+      { "name": "length", "label": "Total Fence Length", "unit": "m", "required": true },
+      { "name": "height", "label": "Fence Height", "unit": "m", "required": false, "default": 1.8 },
+      { "name": "gates", "label": "Number of Gates", "unit": "count", "required": false, "default": 0 }
+    ],
+    "defaultMaterials": [
+      { "materialId": "steel_post_fence", "qtyFormula": "ceil(length / 2.4) + 1 + gates", "wasteFactor": 1.0 },
+      { "materialId": "steel_rail_fence", "qtyFormula": "(ceil(length / 2.4)) * 3", "wasteFactor": 1.0 },
+      { "materialId": "colorbond_fence_sheet", "qtyFormula": "ceil(length / 0.2)", "wasteFactor": 1.02 },
+      { "materialId": "concrete_20kg", "qtyFormula": "(ceil(length / 2.4) + 1 + gates) * 2", "wasteFactor": 1.0 },
+      { "materialId": "tek_screw_12g", "qtyFormula": "ceil(length / 30)", "wasteFactor": 1.0 }
+    ],
+    "labourFormula": "length * 0.4 + gates * 2",
+    "consumablesPercent": 3
+  },
+  {
+    "id": "tmpl_bathroom_reno",
+    "name": "Bathroom Renovation",
+    "category": "renovation",
+    "description": "Full bathroom renovation including demolition, waterproofing, tiling, and finishing",
+    "measurementFields": [
+      { "name": "floorArea", "label": "Floor Area", "unit": "sqm", "required": true },
+      { "name": "wallArea", "label": "Wall Area to Tile", "unit": "sqm", "required": true },
+      { "name": "hasShower", "label": "Includes Shower", "unit": "yes_no", "required": false, "default": 1 },
+      { "name": "hasBath", "label": "Includes Bath", "unit": "yes_no", "required": false, "default": 0 }
+    ],
+    "defaultMaterials": [
+      { "materialId": "waterproof_membrane", "qtyFormula": "ceil((floorArea + wallArea * 0.3) / 4)", "wasteFactor": 1.0 },
+      { "materialId": "tile_floor_m2", "qtyFormula": "floorArea", "wasteFactor": 1.15 },
+      { "materialId": "tile_wall_m2", "qtyFormula": "wallArea", "wasteFactor": 1.15 },
+      { "materialId": "tile_adhesive_20kg", "qtyFormula": "ceil((floorArea + wallArea) / 4)", "wasteFactor": 1.0 },
+      { "materialId": "tile_grout_5kg", "qtyFormula": "ceil((floorArea + wallArea) / 8)", "wasteFactor": 1.0 },
+      { "materialId": "silicone_tube", "qtyFormula": "ceil((floorArea + wallArea) / 5)", "wasteFactor": 1.0 },
+      { "materialId": "plasterboard_13mm", "qtyFormula": "ceil(wallArea * 0.3 / 2.88)", "wasteFactor": 1.1 }
+    ],
+    "labourFormula": "(floorArea + wallArea) * 1.5 + hasShower * 8 + hasBath * 4",
+    "consumablesPercent": 5
+  },
+  {
+    "id": "tmpl_roof_metal",
+    "name": "Metal Roof Replacement",
+    "category": "roofing",
+    "description": "Strip existing roof and replace with colorbond roofing including battens, sarking, and flashings",
+    "measurementFields": [
+      { "name": "roofArea", "label": "Roof Area", "unit": "sqm", "required": true },
+      { "name": "ridgeLength", "label": "Ridge Length", "unit": "m", "required": true },
+      { "name": "gutterLength", "label": "Total Gutter Length", "unit": "m", "required": true },
+      { "name": "downpipes", "label": "Number of Downpipes", "unit": "count", "required": false, "default": 4 }
+    ],
+    "defaultMaterials": [
+      { "materialId": "colorbond_sheet", "qtyFormula": "roofArea / 0.762", "wasteFactor": 1.05 },
+      { "materialId": "roof_batten", "qtyFormula": "roofArea * 1.5", "wasteFactor": 1.05 },
+      { "materialId": "sarking", "qtyFormula": "ceil(roofArea / 30)", "wasteFactor": 1.0 },
+      { "materialId": "ridge_cap", "qtyFormula": "ridgeLength", "wasteFactor": 1.05 },
+      { "materialId": "flashing_custom", "qtyFormula": "ridgeLength * 0.5 + gutterLength * 0.2", "wasteFactor": 1.1 },
+      { "materialId": "gutter_quad", "qtyFormula": "gutterLength", "wasteFactor": 1.05 },
+      { "materialId": "downpipe_90mm", "qtyFormula": "downpipes * 3", "wasteFactor": 1.05 },
+      { "materialId": "roofing_screw", "qtyFormula": "ceil(roofArea * 12 / 250)", "wasteFactor": 1.0 }
+    ],
+    "labourFormula": "roofArea * 0.5 + ridgeLength * 1 + gutterLength * 0.3",
+    "consumablesPercent": 5
+  },
+  {
+    "id": "tmpl_retaining_wall",
+    "name": "Retaining Wall (Block)",
+    "category": "landscaping",
+    "description": "Concrete block retaining wall with drainage and backfill",
+    "measurementFields": [
+      { "name": "length", "label": "Wall Length", "unit": "m", "required": true },
+      { "name": "height", "label": "Wall Height", "unit": "m", "required": true },
+      { "name": "hasDrainage", "label": "Ag Drain Required", "unit": "yes_no", "required": false, "default": 1 }
+    ],
+    "defaultMaterials": [
+      { "materialId": "retaining_block", "qtyFormula": "ceil(length / 0.4) * ceil(height / 0.2)", "wasteFactor": 1.05 },
+      { "materialId": "concrete_20kg", "qtyFormula": "ceil(length * height * 0.3)", "wasteFactor": 1.0 },
+      { "materialId": "reo_bar_12mm", "qtyFormula": "ceil(length / 0.6) + ceil(height / 0.4) * ceil(length / 6)", "wasteFactor": 1.1 },
+      { "materialId": "gravel_20mm_tonne", "qtyFormula": "length * height * 0.3 * 1.6", "wasteFactor": 1.05 },
+      { "materialId": "ag_drain_100mm", "qtyFormula": "hasDrainage * (length + 2)", "wasteFactor": 1.05 },
+      { "materialId": "geofabric_m2", "qtyFormula": "hasDrainage * length * (height + 0.5)", "wasteFactor": 1.1 }
+    ],
+    "labourFormula": "length * height * 1.5 + hasDrainage * length * 0.5",
+    "consumablesPercent": 4
+  },
+  {
+    "id": "tmpl_pergola",
+    "name": "Pergola",
+    "category": "outdoor",
+    "description": "Timber pergola with posts, beams, rafters, and optional roofing",
+    "measurementFields": [
+      { "name": "length", "label": "Pergola Length", "unit": "m", "required": true },
+      { "name": "width", "label": "Pergola Width", "unit": "m", "required": true },
+      { "name": "height", "label": "Post Height", "unit": "m", "required": true, "default": 2.7 },
+      { "name": "hasRoof", "label": "Polycarbonate Roof", "unit": "yes_no", "required": false, "default": 0 }
+    ],
+    "defaultMaterials": [
+      { "materialId": "post_100x100", "qtyFormula": "ceil(length / 3 + 1) * 2", "wasteFactor": 1.0 },
+      { "materialId": "hardwood_beam_200x50", "qtyFormula": "length * 2 + width * ceil(length / 3 + 1)", "wasteFactor": 1.05 },
+      { "materialId": "joist_90x45", "qtyFormula": "ceil(length / 0.6) * width", "wasteFactor": 1.05 },
+      { "materialId": "concrete_20kg", "qtyFormula": "ceil(length / 3 + 1) * 2 * 2", "wasteFactor": 1.0 },
+      { "materialId": "coach_bolt_m10", "qtyFormula": "ceil(length / 3 + 1) * 2 * 4", "wasteFactor": 1.0 },
+      { "materialId": "bracket_angle", "qtyFormula": "ceil(length / 0.6) * 2", "wasteFactor": 1.0 }
+    ],
+    "labourFormula": "area * 1.2 + height * 2",
+    "consumablesPercent": 4
+  },
+  {
+    "id": "tmpl_concrete_slab",
+    "name": "Concrete Slab",
+    "category": "concrete",
+    "description": "Ground-level concrete slab with mesh reinforcement",
+    "measurementFields": [
+      { "name": "length", "label": "Slab Length", "unit": "m", "required": true },
+      { "name": "width", "label": "Slab Width", "unit": "m", "required": true },
+      { "name": "thickness", "label": "Slab Thickness", "unit": "mm", "required": false, "default": 100 }
+    ],
+    "defaultMaterials": [
+      { "materialId": "concrete_premix_m3", "qtyFormula": "area * (thickness / 1000)", "wasteFactor": 1.05 },
+      { "materialId": "reo_mesh_sl72", "qtyFormula": "ceil(area / (6 * 2.4))", "wasteFactor": 1.1 },
+      { "materialId": "sand_bulk_tonne", "qtyFormula": "area * 0.05 * 1.6", "wasteFactor": 1.05 },
+      { "materialId": "stud_90x35", "qtyFormula": "perimeter * 1.2", "wasteFactor": 1.1 }
+    ],
+    "labourFormula": "area * 0.8",
+    "consumablesPercent": 3
+  },
+  {
+    "id": "tmpl_painting_interior",
+    "name": "Interior Painting",
+    "category": "painting",
+    "description": "Interior walls and ceiling painting including prep, prime, and two coats",
+    "measurementFields": [
+      { "name": "wallArea", "label": "Total Wall Area", "unit": "sqm", "required": true },
+      { "name": "ceilingArea", "label": "Ceiling Area", "unit": "sqm", "required": false, "default": 0 },
+      { "name": "coats", "label": "Number of Coats", "unit": "count", "required": false, "default": 2 }
+    ],
+    "defaultMaterials": [
+      { "materialId": "paint_interior_10l", "qtyFormula": "ceil((wallArea + ceilingArea) * coats / 120)", "wasteFactor": 1.0 },
+      { "materialId": "primer_10l", "qtyFormula": "ceil((wallArea + ceilingArea) / 120)", "wasteFactor": 1.0 }
+    ],
+    "labourFormula": "(wallArea + ceilingArea) * 0.15 * coats + (wallArea + ceilingArea) * 0.1",
+    "consumablesPercent": 8
+  },
+  {
+    "id": "tmpl_hourly_general",
+    "name": "General Hourly Work",
+    "category": "general",
+    "description": "General labour without specific material templates. Set hours manually.",
+    "measurementFields": [
+      { "name": "estimatedHours", "label": "Estimated Hours", "unit": "hrs", "required": true },
+      { "name": "crewSize", "label": "Crew Size", "unit": "count", "required": false, "default": 1 }
+    ],
+    "defaultMaterials": [],
+    "labourFormula": "estimatedHours * crewSize",
+    "consumablesPercent": 0
+  }
+]
