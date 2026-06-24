@@ -56,7 +56,7 @@ export default function DataExport() {
     const tables = ['settings', 'clients', 'templates', 'materials', 'quotes', 'jobs',
       'variations', 'expenses', 'invoices', 'jobDiary', 'jobPhotos',
       'mileageLog', 'timeLog', 'savedLocations', 'assets', 'compliance',
-      'swmsDocs', 'swmsTemplates', 'counters'];
+      'swmsDocs', 'swmsTemplates', 'counters', 'photoBlobs'];
 
     for (const name of tables) {
       await db[name].clear();
