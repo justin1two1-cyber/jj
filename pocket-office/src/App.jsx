@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { useResponsive } from './hooks/useResponsive';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
+import InstallPrompt from './components/InstallPrompt';
 import Dashboard from './pages/Dashboard';
 import './App.css';
 
@@ -88,6 +89,7 @@ export default function App() {
         </Suspense>
       </main>
       {isMobile && <BottomNav />}
+      <InstallPrompt />
     </div>
   );
 }

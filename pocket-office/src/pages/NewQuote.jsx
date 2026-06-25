@@ -27,6 +27,7 @@ export default function NewQuote() {
   const [existingClients, setExistingClients] = useState([]);
   const [clientSuggestions, setClientSuggestions] = useState([]);
   const [wasteOverrides, setWasteOverrides] = useState({});
+  const [customItems, setCustomItems] = useState([]);
   const [editQuoteData, setEditQuoteData] = useState(null);
 
   useEffect(() => {
@@ -149,8 +150,35 @@ export default function NewQuote() {
     }
   }
 
+  function getAllMaterials() {
+    const baseMats = calculation?.materials || [];
+    const custom = customItems
+      .filter(item => item.name && item.qty > 0)
+      .map(item => ({
+        materialId: 'custom_' + item.name.toLowerCase().replace(/\s+/g, '_'),
+        name: item.name,
+        qty: item.qty,
+        unitPrice: item.unitPrice,
+        total: item.qty * item.unitPrice,
+        wasteFactor: 1.0,
+      }));
+    return [...baseMats, ...custom];
+  }
+
+  function getTotalWithCustom() {
+    const customTotal = customItems.reduce((sum, item) => sum + item.qty * item.unitPrice, 0);
+    const baseSubtotal = (calculation?.subtotal || 0) + customTotal;
+    const taxRate = calculation?.taxRate ?? 10;
+    const markupPercent = calculation?.markupPercent ?? 0;
+    const afterMarkup = baseSubtotal + Math.round(baseSubtotal * markupPercent / 100);
+    const taxAmount = Math.round(afterMarkup * taxRate / 100);
+    return { subtotal: baseSubtotal, taxAmount, totalPrice: afterMarkup + taxAmount };
+  }
+
   async function saveQuote() {
     const now = new Date().toISOString();
+    const allMaterials = getAllMaterials();
+    const totals = getTotalWithCustom();
 
     if (isEditing && editQuoteData) {
       const { deletePhoto } = await import('../db');
@@ -165,16 +193,16 @@ export default function NewQuote() {
         templateId: selectedTemplate?.id || null,
         ...clientInfo,
         measurements,
-        materials: calculation?.materials || [],
+        materials: allMaterials,
         labourHours: calculation?.labourHours || 0,
         labourRate: calculation?.labourRate || 0,
         travelCost: calculation?.travelCost || 0,
         consumablesCost: calculation?.consumablesCost || 0,
-        subtotal: calculation?.subtotal || 0,
+        subtotal: totals.subtotal,
         markupPercent: calculation?.markupPercent || 0,
-        taxRate: calculation?.taxRate || 0,
-        taxAmount: calculation?.taxAmount || 0,
-        totalPrice: calculation?.totalPrice || 0,
+        taxRate: calculation?.taxRate || 10,
+        taxAmount: totals.taxAmount,
+        totalPrice: totals.totalPrice,
         notes,
         photos: photoKeys,
         updatedAt: now,
@@ -205,16 +233,16 @@ export default function NewQuote() {
       quoteNumber,
       ...clientInfo,
       measurements,
-      materials: calculation?.materials || [],
+      materials: allMaterials,
       labourHours: calculation?.labourHours || 0,
       labourRate: calculation?.labourRate || 0,
       travelCost: calculation?.travelCost || 0,
       consumablesCost: calculation?.consumablesCost || 0,
-      subtotal: calculation?.subtotal || 0,
+      subtotal: totals.subtotal,
       markupPercent: calculation?.markupPercent || 0,
-      taxRate: calculation?.taxRate || 0,
-      taxAmount: calculation?.taxAmount || 0,
-      totalPrice: calculation?.totalPrice || 0,
+      taxRate: calculation?.taxRate || 10,
+      taxAmount: totals.taxAmount,
+      totalPrice: totals.totalPrice,
       status: 'draft',
       validUntil: settings.quoteValidDays
         ? new Date(Date.now() + settings.quoteValidDays * 86400000).toISOString().slice(0, 10)
@@ -374,51 +402,114 @@ export default function NewQuote() {
         </div>
       )}
 
-      {step === 3 && calculation && (
+      {step === 3 && (
         <div>
-          <p style={{ color: 'var(--color-text-secondary)', marginBottom: 16 }}>Review auto-calculated materials. Adjust waste factors as needed.</p>
-          <div className="list-gap">
-            {calculation.materials.map((mat, i) => {
-              const tmplMat = selectedTemplate.defaultMaterials[i];
-              const currentWaste = wasteOverrides[mat.materialId] ?? tmplMat?.wasteFactor ?? 1.0;
-              return (
-                <div key={i} className="card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600 }}>{mat.name}</div>
-                      <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                        {mat.qty} x {formatCents(mat.unitPrice)}
+          <p style={{ color: 'var(--color-text-secondary)', marginBottom: 16 }}>
+            {(calculation?.materials || []).length > 0
+              ? 'Review auto-calculated materials. Adjust waste factors as needed.'
+              : 'Add materials and line items for this quote.'}
+          </p>
+          {(calculation?.materials || []).length > 0 && (
+            <div className="list-gap">
+              {calculation.materials.map((mat, i) => {
+                const tmplMat = selectedTemplate.defaultMaterials[i];
+                const currentWaste = wasteOverrides[mat.materialId] ?? tmplMat?.wasteFactor ?? 1.0;
+                return (
+                  <div key={i} className="card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600 }}>{mat.name}</div>
+                        <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                          {mat.qty} x {formatCents(mat.unitPrice)}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {tmplMat && currentWaste > 1 && (
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>Waste</div>
+                            <select
+                              value={currentWaste}
+                              onChange={e => {
+                                setWasteOverrides(prev => ({ ...prev, [mat.materialId]: parseFloat(e.target.value) }));
+                              }}
+                              style={{ width: 70, padding: '4px 6px', fontSize: 13, textAlign: 'center' }}
+                            >
+                              <option value="1.0">0%</option>
+                              <option value="1.05">5%</option>
+                              <option value="1.1">10%</option>
+                              <option value="1.15">15%</option>
+                              <option value="1.2">20%</option>
+                            </select>
+                          </div>
+                        )}
+                        <div className="money" style={{ fontWeight: 600, minWidth: 80, textAlign: 'right' }}>{formatCents(mat.total)}</div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      {tmplMat && currentWaste > 1 && (
-                        <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>Waste</div>
-                          <select
-                            value={currentWaste}
-                            onChange={e => {
-                              setWasteOverrides(prev => ({ ...prev, [mat.materialId]: parseFloat(e.target.value) }));
-                            }}
-                            style={{ width: 70, padding: '4px 6px', fontSize: 13, textAlign: 'center' }}
-                          >
-                            <option value="1.0">0%</option>
-                            <option value="1.05">5%</option>
-                            <option value="1.1">10%</option>
-                            <option value="1.15">15%</option>
-                            <option value="1.2">20%</option>
-                          </select>
-                        </div>
-                      )}
-                      <div className="money" style={{ fontWeight: 600, minWidth: 80, textAlign: 'right' }}>{formatCents(mat.total)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {customItems.length > 0 && (
+            <div className="list-gap" style={{ marginTop: 12 }}>
+              {customItems.map((item, i) => (
+                <div key={i} className="card">
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <input
+                      placeholder="Item description"
+                      value={item.name}
+                      onChange={e => {
+                        const updated = [...customItems];
+                        updated[i] = { ...item, name: e.target.value };
+                        setCustomItems(updated);
+                      }}
+                      style={{ fontWeight: 600 }}
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Qty</label>
+                        <input type="number" inputMode="decimal" value={item.qty}
+                          onChange={e => {
+                            const updated = [...customItems];
+                            updated[i] = { ...item, qty: parseFloat(e.target.value) || 0 };
+                            setCustomItems(updated);
+                          }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Unit Price ($)</label>
+                        <input type="number" inputMode="decimal" step="0.01" value={item.unitPriceDollars}
+                          onChange={e => {
+                            const updated = [...customItems];
+                            const dollars = parseFloat(e.target.value) || 0;
+                            updated[i] = { ...item, unitPriceDollars: e.target.value, unitPrice: Math.round(dollars * 100) };
+                            setCustomItems(updated);
+                          }} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                        <button className="btn btn-danger" style={{ padding: '8px 12px' }}
+                          onClick={() => setCustomItems(prev => prev.filter((_, j) => j !== i))}>×</button>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--color-text-muted)', textAlign: 'right' }}>
+                      = {formatCents(item.qty * item.unitPrice)}
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
+
+          <button className="btn btn-secondary btn-block" style={{ marginTop: 12 }}
+            onClick={() => setCustomItems(prev => [...prev, { name: '', qty: 1, unitPrice: 0, unitPriceDollars: '' }])}>
+            + Add Custom Item
+          </button>
+
           <div className="card" style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
             <span>Materials Subtotal</span>
-            <span className="money">{formatCents(calculation.materialsTotal)}</span>
+            <span className="money">{formatCents(
+              (calculation?.materialsTotal || 0) + customItems.reduce((sum, item) => sum + item.qty * item.unitPrice, 0)
+            )}</span>
           </div>
           <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 16 }} onClick={() => setStep(4)}>
             Next: Costs
@@ -426,38 +517,38 @@ export default function NewQuote() {
         </div>
       )}
 
-      {step === 4 && calculation && (
+      {step === 4 && (
         <div style={{ maxWidth: 500 }}>
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              <span>Labour ({calculation.labourHours} hrs x {formatCents(calculation.labourRate)}/hr)</span>
-              <span className="money" style={{ fontWeight: 600 }}>{formatCents(calculation.labourCost)}</span>
+              <span>Labour ({calculation?.labourHours || 0} hrs x {formatCents(calculation?.labourRate || 0)}/hr)</span>
+              <span className="money" style={{ fontWeight: 600 }}>{formatCents(calculation?.labourCost || 0)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <span>Travel</span>
-              <span className="money" style={{ fontWeight: 600 }}>{formatCents(calculation.travelCost)}</span>
+              <span className="money" style={{ fontWeight: 600 }}>{formatCents(calculation?.travelCost || 0)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              <span>Consumables ({calculation.consumablesPercent}%)</span>
-              <span className="money" style={{ fontWeight: 600 }}>{formatCents(calculation.consumablesCost)}</span>
+              <span>Consumables ({calculation?.consumablesPercent || 0}%)</span>
+              <span className="money" style={{ fontWeight: 600 }}>{formatCents(calculation?.consumablesCost || 0)}</span>
             </div>
             <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
               <span>Subtotal</span>
-              <span className="money">{formatCents(calculation.subtotal)}</span>
+              <span className="money">{formatCents(getTotalWithCustom().subtotal)}</span>
             </div>
           </div>
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              <span>Markup ({calculation.markupPercent}%)</span>
-              <span className="money" style={{ fontWeight: 600 }}>{formatCents(calculation.markup)}</span>
+              <span>Markup ({calculation?.markupPercent || 0}%)</span>
+              <span className="money" style={{ fontWeight: 600 }}>{formatCents(calculation?.markup || 0)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              <span>GST ({calculation.taxRate}%)</span>
-              <span className="money" style={{ fontWeight: 600 }}>{formatCents(calculation.taxAmount)}</span>
+              <span>GST ({calculation?.taxRate ?? 10}%)</span>
+              <span className="money" style={{ fontWeight: 600 }}>{formatCents(getTotalWithCustom().taxAmount)}</span>
             </div>
             <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 20 }}>
               <span>Total</span>
-              <span className="money">{formatCents(calculation.totalPrice)}</span>
+              <span className="money">{formatCents(getTotalWithCustom().totalPrice)}</span>
             </div>
           </div>
 
@@ -477,7 +568,7 @@ export default function NewQuote() {
         </div>
       )}
 
-      {step === 5 && calculation && (
+      {step === 5 && (
         <div style={{ maxWidth: 600 }}>
           <div className="card" style={{ marginBottom: 16 }}>
             <h3 style={{ marginBottom: 12 }}>Quote Summary</h3>
@@ -493,32 +584,34 @@ export default function NewQuote() {
 
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span>Materials ({calculation.materials.length} items)</span>
-              <span className="money">{formatCents(calculation.materialsTotal)}</span>
+              <span>Materials ({getAllMaterials().length} items)</span>
+              <span className="money">{formatCents(
+                (calculation?.materialsTotal || 0) + customItems.reduce((sum, item) => sum + item.qty * item.unitPrice, 0)
+              )}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span>Labour ({calculation.labourHours} hrs)</span>
-              <span className="money">{formatCents(calculation.labourCost)}</span>
+              <span>Labour ({calculation?.labourHours || 0} hrs)</span>
+              <span className="money">{formatCents(calculation?.labourCost || 0)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span>Travel</span>
-              <span className="money">{formatCents(calculation.travelCost)}</span>
+              <span className="money">{formatCents(calculation?.travelCost || 0)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span>Consumables</span>
-              <span className="money">{formatCents(calculation.consumablesCost)}</span>
+              <span className="money">{formatCents(calculation?.consumablesCost || 0)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span>Markup</span>
-              <span className="money">{formatCents(calculation.markup)}</span>
+              <span className="money">{formatCents(calculation?.markup || 0)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span>GST</span>
-              <span className="money">{formatCents(calculation.taxAmount)}</span>
+              <span className="money">{formatCents(getTotalWithCustom().taxAmount)}</span>
             </div>
             <div style={{ borderTop: '2px solid var(--color-primary)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 24 }}>
               <span>TOTAL</span>
-              <span className="money">{formatCents(calculation.totalPrice)}</span>
+              <span className="money">{formatCents(getTotalWithCustom().totalPrice)}</span>
             </div>
           </div>
 

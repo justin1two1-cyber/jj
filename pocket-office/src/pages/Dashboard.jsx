@@ -3,6 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../db';
 import { formatCents } from '../utils/formatCurrency';
 
+const WEATHER_CODES = {
+  0: 'Clear', 1: 'Clear', 2: 'Partly Cloudy', 3: 'Overcast',
+  45: 'Fog', 48: 'Fog', 51: 'Drizzle', 53: 'Drizzle', 55: 'Drizzle',
+  61: 'Rain', 63: 'Rain', 65: 'Heavy Rain',
+  80: 'Showers', 81: 'Showers', 82: 'Heavy Showers',
+  95: 'Thunderstorm', 96: 'Thunderstorm + Hail', 99: 'Thunderstorm + Hail',
+};
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
@@ -15,6 +23,7 @@ export default function Dashboard() {
   const [recentQuotes, setRecentQuotes] = useState([]);
   const [recentExpenses, setRecentExpenses] = useState([]);
   const [expiryAlerts, setExpiryAlerts] = useState([]);
+  const [weatherWarnings, setWeatherWarnings] = useState([]);
 
   useEffect(() => {
     loadDashboard();
@@ -57,6 +66,40 @@ export default function Dashboard() {
 
     const recentExp = await db.expenses.orderBy('createdAt').reverse().limit(5).toArray();
     setRecentExpenses(recentExp);
+
+    const activeJbs = await db.jobs.where('status').anyOf('in_progress', 'scheduled').toArray();
+    const jobsWithAddress = activeJbs.filter(j => j.siteAddress).slice(0, 3);
+    if (jobsWithAddress.length > 0) {
+      try {
+        const warnings = [];
+        for (const job of jobsWithAddress) {
+          const geoRes = await fetch(
+            `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(job.siteAddress)}&count=1&language=en&format=json`
+          );
+          const geoData = await geoRes.json();
+          if (!geoData.results?.length) continue;
+          const { latitude, longitude } = geoData.results[0];
+          const wxRes = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,wind_speed_10m_max,precipitation_probability_max&timezone=auto&forecast_days=1`
+          );
+          const wx = await wxRes.json();
+          const code = wx.daily.weather_code[0];
+          const wind = wx.daily.wind_speed_10m_max[0];
+          const rain = wx.daily.precipitation_probability_max[0];
+          if (code >= 61 || wind >= 35 || code >= 95) {
+            warnings.push({
+              jobName: job.clientName || job.jobNumber,
+              site: job.siteAddress,
+              condition: WEATHER_CODES[code] || 'Bad Weather',
+              wind: Math.round(wind),
+              rainChance: rain,
+              severe: code >= 95 || wind >= 50,
+            });
+          }
+        }
+        setWeatherWarnings(warnings);
+      } catch {}
+    }
   }
 
   return (
@@ -91,6 +134,30 @@ export default function Dashboard() {
             style={{ fontWeight: 700, fontSize: 20 }}>
             {formatCents(stats.monthIncome - stats.monthExpenses)}
           </span>
+        </div>
+      )}
+
+      {weatherWarnings.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ marginBottom: 12 }}>Weather Warnings</h2>
+          <div className="list-gap">
+            {weatherWarnings.map((w, i) => (
+              <div key={i} className="card card-clickable" onClick={() => navigate('/weather')}
+                style={{ borderColor: w.severe ? 'var(--color-danger)' : 'var(--color-warning)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{w.severe ? '⛈' : '🌧'} {w.condition}</div>
+                    <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                      {w.jobName} · Wind: {w.wind}km/h · Rain: {w.rainChance}%
+                    </div>
+                  </div>
+                  <span className={`badge ${w.severe ? 'badge-declined' : 'badge-active'}`}>
+                    {w.severe ? 'SEVERE' : 'WARNING'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
