@@ -20,7 +20,7 @@ export default function Settings() {
   }
 
   async function save() {
-    const numericKeys = ['labourRate', 'markupPercent', 'taxRate', 'defaultTravelCost', 'atoMileageRate', 'quoteValidDays', 'paymentTermsDays'];
+    const numericKeys = ['labourRate', 'markupPercent', 'taxRate', 'defaultTravelCost', 'atoMileageRate', 'quoteValidDays', 'paymentTermsDays', 'concreteRatePerM3', 'reoRatePerSqm', 'fixingsRatePerSqm', 'formworkRatePerLm', 'mealAllowance', 'accommodationRate', 'materialMarkupQuoting', 'materialMarkupInternal'];
     for (const key of Object.keys(settings)) {
       const val = numericKeys.includes(key) ? Number(settings[key]) : settings[key];
       await setSetting(key, val);
@@ -119,6 +119,56 @@ export default function Settings() {
           <div className="form-group">
             <label>Default Travel Cost ($)</label>
             <input type="number" value={settings.defaultTravelCost != null ? settings.defaultTravelCost / 100 : ''} onChange={e => update('defaultTravelCost', Math.round(parseFloat(e.target.value || 0) * 100))} />
+          </div>
+        </div>
+
+        <h3 style={{ margin: '24px 0 12px' }}>Fixed Figures (Used in Quoting)</h3>
+        <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 12 }}>
+          Set rates that don't change often — these are pulled in automatically when quoting
+        </p>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Concrete ($/m³)</label>
+            <input type="number" inputMode="decimal" value={settings.concreteRatePerM3 != null ? settings.concreteRatePerM3 / 100 : ''} onChange={e => update('concreteRatePerM3', Math.round(parseFloat(e.target.value || 0) * 100))} placeholder="250" />
+          </div>
+          <div className="form-group">
+            <label>Reo Mesh ($/m²)</label>
+            <input type="number" inputMode="decimal" value={settings.reoRatePerSqm != null ? settings.reoRatePerSqm / 100 : ''} onChange={e => update('reoRatePerSqm', Math.round(parseFloat(e.target.value || 0) * 100))} placeholder="15" />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Screws/Fixings ($/m²)</label>
+            <input type="number" inputMode="decimal" value={settings.fixingsRatePerSqm != null ? settings.fixingsRatePerSqm / 100 : ''} onChange={e => update('fixingsRatePerSqm', Math.round(parseFloat(e.target.value || 0) * 100))} placeholder="8" />
+          </div>
+          <div className="form-group">
+            <label>Formwork ($/lin.m)</label>
+            <input type="number" inputMode="decimal" value={settings.formworkRatePerLm != null ? settings.formworkRatePerLm / 100 : ''} onChange={e => update('formworkRatePerLm', Math.round(parseFloat(e.target.value || 0) * 100))} placeholder="25" />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Daily Meal Allowance ($)</label>
+            <input type="number" inputMode="decimal" value={settings.mealAllowance != null ? settings.mealAllowance / 100 : ''} onChange={e => update('mealAllowance', Math.round(parseFloat(e.target.value || 0) * 100))} placeholder="30" />
+          </div>
+          <div className="form-group">
+            <label>Daily Accommodation ($)</label>
+            <input type="number" inputMode="decimal" value={settings.accommodationRate != null ? settings.accommodationRate / 100 : ''} onChange={e => update('accommodationRate', Math.round(parseFloat(e.target.value || 0) * 100))} placeholder="150" />
+          </div>
+        </div>
+
+        <h3 style={{ margin: '24px 0 12px' }}>Material Markup</h3>
+        <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 12 }}>
+          Separate markup rates for quoting (sell price) vs internal tracking (cost price)
+        </p>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Quoting Markup (%)</label>
+            <input type="number" value={settings.materialMarkupQuoting ?? ''} onChange={e => update('materialMarkupQuoting', parseFloat(e.target.value || 0))} placeholder="20" />
+          </div>
+          <div className="form-group">
+            <label>Internal/Cost Markup (%)</label>
+            <input type="number" value={settings.materialMarkupInternal ?? ''} onChange={e => update('materialMarkupInternal', parseFloat(e.target.value || 0))} placeholder="0" />
           </div>
         </div>
 

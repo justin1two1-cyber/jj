@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { v4 as uuid } from 'uuid';
-import { db } from '../db';
+import { db, storePhoto } from '../db';
 import { formatCents, parseDollarsTocents } from '../utils/formatCurrency';
+import CameraInput from '../components/CameraInput';
 
 const CATEGORIES = ['all', 'timber', 'fixings', 'concrete', 'roofing', 'fencing', 'general'];
 const UNITS = ['each', 'linear_m', 'sq_m', 'kg', 'box', 'bag'];
@@ -16,6 +17,10 @@ export default function Materials() {
   const [form, setForm] = useState({
     name: '', category: 'general', unit: 'each', defaultPrice: '', wasteFactor: '1.1', supplierNotes: '',
   });
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptPhoto, setReceiptPhoto] = useState(null);
+  const [receiptItems, setReceiptItems] = useState([{ name: '', qty: '', unitPrice: '', materialId: '' }]);
+  const [receiptSupplier, setReceiptSupplier] = useState('');
 
   useEffect(() => { loadMaterials(); }, [filter, search]);
 
@@ -60,14 +65,144 @@ export default function Materials() {
     loadMaterials();
   }
 
+  function handleReceiptPhoto(blob) {
+    setReceiptPhoto(blob);
+  }
+
+  async function processReceipt() {
+    const validItems = receiptItems.filter(item => item.name.trim() && item.unitPrice);
+    if (validItems.length === 0) { alert('Add at least one item from the receipt'); return; }
+
+    for (const item of validItems) {
+      const priceInCents = parseDollarsTocents(item.unitPrice);
+      if (item.materialId) {
+        await db.materials.update(item.materialId, {
+          userPrice: priceInCents,
+          supplier: receiptSupplier || undefined,
+          supplierNotes: receiptSupplier ? `Last purchased at ${receiptSupplier}` : undefined,
+        });
+      } else {
+        const existing = await db.materials.where('name').equalsIgnoreCase(item.name.trim()).first();
+        if (existing) {
+          await db.materials.update(existing.id, {
+            userPrice: priceInCents,
+            supplier: receiptSupplier || undefined,
+            supplierNotes: receiptSupplier ? `Last purchased at ${receiptSupplier}` : undefined,
+          });
+        } else {
+          await db.materials.add({
+            id: uuid(),
+            name: item.name.trim(),
+            category: 'general',
+            unit: 'each',
+            defaultPrice: priceInCents,
+            userPrice: null,
+            supplier: receiptSupplier,
+            wasteFactor: 1.1,
+            supplierNotes: receiptSupplier ? `Last purchased at ${receiptSupplier}` : '',
+            isCustom: true,
+          });
+        }
+      }
+    }
+
+    if (receiptPhoto) {
+      await storePhoto(`receipt_${uuid()}`, receiptPhoto);
+    }
+
+    setShowReceipt(false);
+    setReceiptPhoto(null);
+    setReceiptItems([{ name: '', qty: '', unitPrice: '', materialId: '' }]);
+    setReceiptSupplier('');
+    loadMaterials();
+  }
+
   return (
     <div className="page">
       <div className="page-header">
         <h1>Materials</h1>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancel' : '+ Add Material'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={() => { setShowReceipt(!showReceipt); setShowForm(false); }}
+            style={{ background: showReceipt ? 'var(--color-primary-light)' : undefined }}>
+            {showReceipt ? 'Cancel' : 'Scan Receipt'}
+          </button>
+          <button className="btn btn-primary" onClick={() => { setShowForm(!showForm); setShowReceipt(false); }}>
+            {showForm ? 'Cancel' : '+ Add'}
+          </button>
+        </div>
       </div>
+
+      {showReceipt && (
+        <div className="card" style={{ marginBottom: 20, borderColor: 'var(--color-accent-aqua)' }}>
+          <h3 style={{ marginBottom: 4 }}>Update Prices from Receipt</h3>
+          <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 12 }}>
+            Take a photo of your receipt, then enter the items and prices below to update your material costs
+          </p>
+
+          <div style={{ marginBottom: 12 }}>
+            <CameraInput onCapture={handleReceiptPhoto} label="Take Receipt Photo" />
+            {receiptPhoto && (
+              <div style={{ marginTop: 8 }}>
+                <img src={URL.createObjectURL(receiptPhoto)} alt="Receipt" style={{ width: '100%', maxWidth: 300, borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--color-border)' }} />
+              </div>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label>Supplier</label>
+            <input value={receiptSupplier} onChange={e => setReceiptSupplier(e.target.value)} placeholder="e.g. Bunnings, Bowens, Mitre 10" />
+          </div>
+
+          {receiptItems.map((item, i) => (
+            <div key={i} className="card" style={{ marginBottom: 8, padding: 12, background: 'var(--color-bg)' }}>
+              <div className="form-group" style={{ marginBottom: 8 }}>
+                <label>Item Name</label>
+                <input value={item.name} onChange={e => {
+                  const updated = [...receiptItems];
+                  updated[i] = { ...item, name: e.target.value, materialId: '' };
+                  const match = materials.find(m => m.name.toLowerCase() === e.target.value.toLowerCase());
+                  if (match) updated[i].materialId = match.id;
+                  setReceiptItems(updated);
+                }} placeholder="e.g. 10g x 50mm Screws" list={`mat-suggest-${i}`} />
+                <datalist id={`mat-suggest-${i}`}>
+                  {materials.slice(0, 20).map(m => <option key={m.id} value={m.name} />)}
+                </datalist>
+              </div>
+              <div className="form-row">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Qty Purchased</label>
+                  <input type="number" inputMode="numeric" value={item.qty} onChange={e => {
+                    const updated = [...receiptItems];
+                    updated[i] = { ...item, qty: e.target.value };
+                    setReceiptItems(updated);
+                  }} placeholder="15" />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Unit Price ($)</label>
+                  <input type="number" inputMode="decimal" step="0.01" value={item.unitPrice} onChange={e => {
+                    const updated = [...receiptItems];
+                    updated[i] = { ...item, unitPrice: e.target.value };
+                    setReceiptItems(updated);
+                  }} placeholder="12.50" />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <button className="btn btn-danger" style={{ padding: '8px 12px' }}
+                    onClick={() => setReceiptItems(prev => prev.filter((_, j) => j !== i))}>x</button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <button className="btn btn-secondary btn-block" style={{ marginBottom: 12 }}
+            onClick={() => setReceiptItems(prev => [...prev, { name: '', qty: '', unitPrice: '', materialId: '' }])}>
+            + Add Another Item
+          </button>
+
+          <button className="btn btn-primary btn-block" onClick={processReceipt}>
+            Update Material Prices
+          </button>
+        </div>
+      )}
 
       {showForm && (
         <div className="card" style={{ marginBottom: 20 }}>

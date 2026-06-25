@@ -58,13 +58,40 @@ export function calculateQuote(template, measurements, materialPrices, settings)
     }
   }
 
+  const autoCalcItems = [];
+  const area = vars.area || 0;
+  const perimeter = vars.perimeter || 0;
+
+  if (area > 0 && settings.concreteRatePerM3) {
+    const thickness = vars.thickness || vars.depth || 0.1;
+    const volume = Math.ceil(area * thickness * 10) / 10;
+    if (volume > 0) {
+      const cost = Math.round(volume * settings.concreteRatePerM3);
+      autoCalcItems.push({ materialId: 'auto_concrete', name: `Concrete (${volume}m³)`, qty: 1, unitPrice: cost, total: cost, wasteFactor: 1.0, autoCalc: true });
+    }
+  }
+  if (area > 0 && settings.reoRatePerSqm) {
+    const cost = Math.round(area * settings.reoRatePerSqm);
+    autoCalcItems.push({ materialId: 'auto_reo', name: `Reo Mesh (${area}m²)`, qty: 1, unitPrice: cost, total: cost, wasteFactor: 1.0, autoCalc: true });
+  }
+  if (area > 0 && settings.fixingsRatePerSqm) {
+    const cost = Math.round(area * settings.fixingsRatePerSqm);
+    autoCalcItems.push({ materialId: 'auto_fixings', name: `Screws & Fixings (${area}m²)`, qty: 1, unitPrice: cost, total: cost, wasteFactor: 1.0, autoCalc: true });
+  }
+  if (perimeter > 0 && settings.formworkRatePerLm) {
+    const cost = Math.round(perimeter * settings.formworkRatePerLm);
+    autoCalcItems.push({ materialId: 'auto_formwork', name: `Formwork (${perimeter}lin.m)`, qty: 1, unitPrice: cost, total: cost, wasteFactor: 1.0, autoCalc: true });
+  }
+
+  const allMaterialLines = [...materialLines, ...autoCalcItems];
+
   const labourHours = Math.ceil(evaluateFormula(template.labourFormula, vars) * 10) / 10;
   const labourRate = settings.labourRate ?? 6500;
   const labourCost = Math.round(labourHours * labourRate);
 
   const travelCost = settings.defaultTravelCost ?? 5000;
 
-  const materialsTotal = materialLines.reduce((sum, m) => sum + m.total, 0);
+  const materialsTotal = allMaterialLines.reduce((sum, m) => sum + m.total, 0);
 
   const consumablesPercent = template.consumablesPercent ?? 5;
   const consumablesCost = Math.round(materialsTotal * (consumablesPercent / 100));
@@ -80,7 +107,7 @@ export function calculateQuote(template, measurements, materialPrices, settings)
   const totalPrice = beforeTax + taxAmount;
 
   return {
-    materials: materialLines,
+    materials: allMaterialLines,
     materialsTotal,
     labourHours,
     labourRate,

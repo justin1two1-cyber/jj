@@ -29,17 +29,23 @@ export default function NewQuote() {
   const [wasteOverrides, setWasteOverrides] = useState({});
   const [customItems, setCustomItems] = useState([]);
   const [editQuoteData, setEditQuoteData] = useState(null);
-  const [siteConditions, setSiteConditions] = useState({
-    access: 'easy',
-    siteType: 'new_build',
-    demolition: false,
+  const [jobAllowances, setJobAllowances] = useState({
+    machineryHire: false,
+    machineryDesc: '',
+    machineryCost: '',
+    accommodation: false,
+    accommodationDays: '',
+    accommodationRate: '',
+    mealAllowance: false,
+    mealDays: '',
+    mealRate: '',
     scaffolding: false,
+    scaffoldingCost: '',
     skipBin: false,
+    skipBinCost: '',
     permitRequired: false,
     permitCost: '',
     tipFees: '',
-    storeys: '1',
-    complexity: 'standard',
     scopeNotes: '',
   });
 
@@ -90,7 +96,8 @@ export default function NewQuote() {
             }));
           if (savedCustomItems.length > 0) setCustomItems(savedCustomItems);
 
-          if (quote.siteConditions) setSiteConditions(sc => ({ ...sc, ...quote.siteConditions }));
+          if (quote.jobAllowances) setJobAllowances(ja => ({ ...ja, ...quote.jobAllowances }));
+          if (quote.siteConditions) setJobAllowances(ja => ({ ...ja, ...quote.siteConditions }));
 
           if (quote.photos?.length > 0) {
             const blobs = [];
@@ -165,7 +172,7 @@ export default function NewQuote() {
 
   useEffect(() => {
     if (step >= 3 && selectedTemplate) recalculate();
-  }, [step, measurements, wasteOverrides, siteConditions]);
+  }, [step, measurements, wasteOverrides]);
 
   function handlePhotoCapture(blob, isMultiple) {
     if (isMultiple && Array.isArray(blob)) {
@@ -175,30 +182,51 @@ export default function NewQuote() {
     }
   }
 
-  function getSiteAdjustments() {
-    let labourMultiplier = 1.0;
+  function getJobAllowancesCost() {
     let extraCosts = 0;
+    const breakdown = [];
 
-    if (siteConditions.access === 'moderate') labourMultiplier += 0.1;
-    else if (siteConditions.access === 'difficult') labourMultiplier += 0.25;
-    else if (siteConditions.access === 'very_difficult') labourMultiplier += 0.4;
+    if (jobAllowances.machineryHire) {
+      const cost = Math.round((parseFloat(jobAllowances.machineryCost) || 0) * 100);
+      extraCosts += cost;
+      if (cost > 0) breakdown.push({ label: `Machinery: ${jobAllowances.machineryDesc || 'Hire'}`, amount: cost });
+    }
+    if (jobAllowances.accommodation) {
+      const days = parseFloat(jobAllowances.accommodationDays) || 0;
+      const rate = Math.round((parseFloat(jobAllowances.accommodationRate) || (settings.accommodationRate ? settings.accommodationRate / 100 : 150)) * 100);
+      const cost = days * rate;
+      extraCosts += cost;
+      if (cost > 0) breakdown.push({ label: `Accommodation (${days} nights)`, amount: cost });
+    }
+    if (jobAllowances.mealAllowance) {
+      const days = parseFloat(jobAllowances.mealDays) || 0;
+      const rate = Math.round((parseFloat(jobAllowances.mealRate) || (settings.mealAllowance ? settings.mealAllowance / 100 : 30)) * 100);
+      const cost = days * rate;
+      extraCosts += cost;
+      if (cost > 0) breakdown.push({ label: `Meal Allowance (${days} days)`, amount: cost });
+    }
+    if (jobAllowances.scaffolding) {
+      const cost = Math.round((parseFloat(jobAllowances.scaffoldingCost) || 500) * 100);
+      extraCosts += cost;
+      breakdown.push({ label: 'Scaffolding', amount: cost });
+    }
+    if (jobAllowances.skipBin) {
+      const cost = Math.round((parseFloat(jobAllowances.skipBinCost) || 350) * 100);
+      extraCosts += cost;
+      breakdown.push({ label: 'Skip Bin', amount: cost });
+    }
+    if (jobAllowances.permitRequired) {
+      const cost = Math.round((parseFloat(jobAllowances.permitCost) || 0) * 100);
+      extraCosts += cost;
+      if (cost > 0) breakdown.push({ label: 'Permit', amount: cost });
+    }
+    const tipCost = Math.round((parseFloat(jobAllowances.tipFees) || 0) * 100);
+    if (tipCost > 0) {
+      extraCosts += tipCost;
+      breakdown.push({ label: 'Tip / Waste Disposal', amount: tipCost });
+    }
 
-    if (siteConditions.siteType === 'renovation') labourMultiplier += 0.15;
-
-    if (siteConditions.storeys === '2') labourMultiplier += 0.15;
-    else if (siteConditions.storeys === '3+') labourMultiplier += 0.3;
-
-    if (siteConditions.complexity === 'moderate') labourMultiplier += 0.1;
-    else if (siteConditions.complexity === 'complex') labourMultiplier += 0.25;
-    else if (siteConditions.complexity === 'highly_complex') labourMultiplier += 0.4;
-
-    if (siteConditions.demolition) labourMultiplier += 0.2;
-    if (siteConditions.scaffolding) extraCosts += Math.round((parseFloat(siteConditions.scaffoldingCost) || 500) * 100);
-    if (siteConditions.skipBin) extraCosts += Math.round((parseFloat(siteConditions.skipBinCost) || 350) * 100);
-    if (siteConditions.permitRequired) extraCosts += Math.round((parseFloat(siteConditions.permitCost) || 0) * 100);
-    extraCosts += Math.round((parseFloat(siteConditions.tipFees) || 0) * 100);
-
-    return { labourMultiplier, extraCosts };
+    return { extraCosts, breakdown };
   }
 
   function getAllMaterials() {
@@ -218,15 +246,15 @@ export default function NewQuote() {
 
   function getTotalWithCustom() {
     const customTotal = customItems.reduce((sum, item) => sum + item.qty * item.unitPrice, 0);
-    const { labourMultiplier, extraCosts } = getSiteAdjustments();
-    const adjustedLabour = Math.round((calculation?.labourCost || 0) * labourMultiplier);
-    const labourDiff = adjustedLabour - (calculation?.labourCost || 0);
-    const baseSubtotal = (calculation?.subtotal || 0) + customTotal + labourDiff + extraCosts;
+    const { extraCosts, breakdown } = getJobAllowancesCost();
+    const baseSubtotal = (calculation?.subtotal || 0) + customTotal + extraCosts;
     const taxRate = calculation?.taxRate ?? 10;
     const markupPercent = calculation?.markupPercent ?? 0;
-    const afterMarkup = baseSubtotal + Math.round(baseSubtotal * markupPercent / 100);
+    const materialMarkup = settings.materialMarkupQuoting || 0;
+    const materialsWithMarkup = Math.round(((calculation?.materialsTotal || 0) + customTotal) * materialMarkup / 100);
+    const afterMarkup = baseSubtotal + Math.round((calculation?.subtotal || 0) * markupPercent / 100) + materialsWithMarkup;
     const taxAmount = Math.round(afterMarkup * taxRate / 100);
-    return { subtotal: baseSubtotal, taxAmount, totalPrice: afterMarkup + taxAmount, labourMultiplier, adjustedLabour, extraCosts };
+    return { subtotal: baseSubtotal, taxAmount, totalPrice: afterMarkup + taxAmount, extraCosts, breakdown, materialsMarkup: materialsWithMarkup };
   }
 
   async function saveQuote() {
@@ -247,7 +275,7 @@ export default function NewQuote() {
         templateId: selectedTemplate?.id || null,
         ...clientInfo,
         measurements,
-        siteConditions,
+        jobAllowances,
         materials: allMaterials,
         labourHours: calculation?.labourHours || 0,
         labourRate: calculation?.labourRate || 0,
@@ -288,7 +316,7 @@ export default function NewQuote() {
       quoteNumber,
       ...clientInfo,
       measurements,
-      siteConditions,
+      jobAllowances,
       materials: allMaterials,
       labourHours: calculation?.labourHours || 0,
       labourRate: calculation?.labourRate || 0,
@@ -299,7 +327,7 @@ export default function NewQuote() {
       taxRate: calculation?.taxRate || 10,
       taxAmount: totals.taxAmount,
       totalPrice: totals.totalPrice,
-      siteAdjustments: { labourMultiplier: totals.labourMultiplier, extraCosts: totals.extraCosts },
+      allowanceBreakdown: totals.breakdown,
       status: 'draft',
       validUntil: settings.quoteValidDays
         ? new Date(Date.now() + settings.quoteValidDays * 86400000).toISOString().slice(0, 10)
@@ -447,100 +475,122 @@ export default function NewQuote() {
                   />
                 </div>
               ))}
-              <div style={{ borderTop: '2px solid var(--color-border)', marginTop: 20, paddingTop: 16 }}>
-                <h3 style={{ marginBottom: 4 }}>Site Conditions</h3>
+              <div style={{ borderTop: '1.5px solid var(--color-border)', marginTop: 20, paddingTop: 16 }}>
+                <h3 style={{ marginBottom: 4 }}>Job Allowances & Extras</h3>
                 <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 12 }}>
-                  More detail = more accurate quote. Fill in what applies.
+                  Add costs for machinery, accommodation, meals, and site extras
                 </p>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Access</label>
-                    <select value={siteConditions.access} onChange={e => setSiteConditions(s => ({ ...s, access: e.target.value }))}>
-                      <option value="easy">Easy — clear driveway access</option>
-                      <option value="moderate">Moderate — side gate / narrow</option>
-                      <option value="difficult">Difficult — stairs / steep / tight</option>
-                      <option value="very_difficult">Very Difficult — crane / no vehicle</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Site Type</label>
-                    <select value={siteConditions.siteType} onChange={e => setSiteConditions(s => ({ ...s, siteType: e.target.value }))}>
-                      <option value="new_build">New Build</option>
-                      <option value="renovation">Renovation / Existing Structure</option>
-                    </select>
-                  </div>
+
+                <div className="card" style={{ marginBottom: 12, background: jobAllowances.machineryHire ? 'var(--color-primary-light)' : undefined }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14, marginBottom: jobAllowances.machineryHire ? 10 : 0 }}>
+                    <input type="checkbox" checked={jobAllowances.machineryHire}
+                      onChange={e => setJobAllowances(s => ({ ...s, machineryHire: e.target.checked }))} />
+                    Machinery Hire
+                  </label>
+                  {jobAllowances.machineryHire && (
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Description</label>
+                        <input value={jobAllowances.machineryDesc} onChange={e => setJobAllowances(s => ({ ...s, machineryDesc: e.target.value }))} placeholder="e.g. Excavator, Crane, Bobcat" />
+                      </div>
+                      <div className="form-group">
+                        <label>Total Cost ($)</label>
+                        <input type="number" inputMode="decimal" value={jobAllowances.machineryCost} onChange={e => setJobAllowances(s => ({ ...s, machineryCost: e.target.value }))} placeholder="0" />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Storeys</label>
-                    <select value={siteConditions.storeys} onChange={e => setSiteConditions(s => ({ ...s, storeys: e.target.value }))}>
-                      <option value="1">Single Storey</option>
-                      <option value="2">Two Storey</option>
-                      <option value="3+">Three+</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Complexity</label>
-                    <select value={siteConditions.complexity} onChange={e => setSiteConditions(s => ({ ...s, complexity: e.target.value }))}>
-                      <option value="standard">Standard</option>
-                      <option value="moderate">Moderate — some tricky cuts / angles</option>
-                      <option value="complex">Complex — custom work / curves</option>
-                      <option value="highly_complex">Highly Complex — specialist work</option>
-                    </select>
-                  </div>
+
+                <div className="card" style={{ marginBottom: 12, background: jobAllowances.accommodation ? 'var(--color-primary-light)' : undefined }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14, marginBottom: jobAllowances.accommodation ? 10 : 0 }}>
+                    <input type="checkbox" checked={jobAllowances.accommodation}
+                      onChange={e => setJobAllowances(s => ({ ...s, accommodation: e.target.checked }))} />
+                    Accommodation
+                  </label>
+                  {jobAllowances.accommodation && (
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Nights</label>
+                        <input type="number" inputMode="numeric" value={jobAllowances.accommodationDays} onChange={e => setJobAllowances(s => ({ ...s, accommodationDays: e.target.value }))} placeholder="0" />
+                      </div>
+                      <div className="form-group">
+                        <label>Rate per Night ($)</label>
+                        <input type="number" inputMode="decimal" value={jobAllowances.accommodationRate || (settings.accommodationRate ? settings.accommodationRate / 100 : '')} onChange={e => setJobAllowances(s => ({ ...s, accommodationRate: e.target.value }))} placeholder="150" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="card" style={{ marginBottom: 12, background: jobAllowances.mealAllowance ? 'var(--color-primary-light)' : undefined }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14, marginBottom: jobAllowances.mealAllowance ? 10 : 0 }}>
+                    <input type="checkbox" checked={jobAllowances.mealAllowance}
+                      onChange={e => setJobAllowances(s => ({ ...s, mealAllowance: e.target.checked }))} />
+                    Meal Allowance
+                  </label>
+                  {jobAllowances.mealAllowance && (
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Days</label>
+                        <input type="number" inputMode="numeric" value={jobAllowances.mealDays} onChange={e => setJobAllowances(s => ({ ...s, mealDays: e.target.value }))} placeholder="0" />
+                      </div>
+                      <div className="form-group">
+                        <label>Rate per Day ($)</label>
+                        <input type="number" inputMode="decimal" value={jobAllowances.mealRate || (settings.mealAllowance ? settings.mealAllowance / 100 : '')} onChange={e => setJobAllowances(s => ({ ...s, mealRate: e.target.value }))} placeholder="30" />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
                   {[
-                    { key: 'demolition', label: 'Demolition / Removal' },
-                    { key: 'scaffolding', label: 'Scaffolding Needed' },
-                    { key: 'skipBin', label: 'Skip Bin Required' },
+                    { key: 'scaffolding', label: 'Scaffolding' },
+                    { key: 'skipBin', label: 'Skip Bin' },
                     { key: 'permitRequired', label: 'Permit Required' },
                   ].map(opt => (
                     <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14 }}>
-                      <input type="checkbox" checked={siteConditions[opt.key]}
-                        onChange={e => setSiteConditions(s => ({ ...s, [opt.key]: e.target.checked }))} />
+                      <input type="checkbox" checked={jobAllowances[opt.key]}
+                        onChange={e => setJobAllowances(s => ({ ...s, [opt.key]: e.target.checked }))} />
                       {opt.label}
                     </label>
                   ))}
                 </div>
 
-                {siteConditions.scaffolding && (
+                {jobAllowances.scaffolding && (
                   <div className="form-group">
                     <label>Scaffolding Cost ($)</label>
-                    <input type="number" inputMode="decimal" value={siteConditions.scaffoldingCost || ''}
-                      onChange={e => setSiteConditions(s => ({ ...s, scaffoldingCost: e.target.value }))}
+                    <input type="number" inputMode="decimal" value={jobAllowances.scaffoldingCost}
+                      onChange={e => setJobAllowances(s => ({ ...s, scaffoldingCost: e.target.value }))}
                       placeholder="500" />
                   </div>
                 )}
-                {siteConditions.skipBin && (
+                {jobAllowances.skipBin && (
                   <div className="form-group">
                     <label>Skip Bin Cost ($)</label>
-                    <input type="number" inputMode="decimal" value={siteConditions.skipBinCost || ''}
-                      onChange={e => setSiteConditions(s => ({ ...s, skipBinCost: e.target.value }))}
+                    <input type="number" inputMode="decimal" value={jobAllowances.skipBinCost}
+                      onChange={e => setJobAllowances(s => ({ ...s, skipBinCost: e.target.value }))}
                       placeholder="350" />
                   </div>
                 )}
-                {siteConditions.permitRequired && (
+                {jobAllowances.permitRequired && (
                   <div className="form-group">
                     <label>Permit Cost ($)</label>
-                    <input type="number" inputMode="decimal" value={siteConditions.permitCost}
-                      onChange={e => setSiteConditions(s => ({ ...s, permitCost: e.target.value }))}
+                    <input type="number" inputMode="decimal" value={jobAllowances.permitCost}
+                      onChange={e => setJobAllowances(s => ({ ...s, permitCost: e.target.value }))}
                       placeholder="0" />
                   </div>
                 )}
                 <div className="form-group">
-                  <label>Tip / Waste Disposal Fees ($)</label>
-                  <input type="number" inputMode="decimal" value={siteConditions.tipFees}
-                    onChange={e => setSiteConditions(s => ({ ...s, tipFees: e.target.value }))}
+                  <label>Tip / Waste Disposal ($)</label>
+                  <input type="number" inputMode="decimal" value={jobAllowances.tipFees}
+                    onChange={e => setJobAllowances(s => ({ ...s, tipFees: e.target.value }))}
                     placeholder="0" />
                 </div>
                 <div className="form-group">
                   <label>Scope Notes</label>
                   <VoiceInput
-                    value={siteConditions.scopeNotes}
-                    onChange={v => setSiteConditions(s => ({ ...s, scopeNotes: v }))}
-                    onTranscript={v => setSiteConditions(s => ({ ...s, scopeNotes: v }))}
+                    value={jobAllowances.scopeNotes}
+                    onChange={v => setJobAllowances(s => ({ ...s, scopeNotes: v }))}
+                    onTranscript={v => setJobAllowances(s => ({ ...s, scopeNotes: v }))}
                     placeholder="Any special requirements, existing damage, specific finishes..."
                   />
                 </div>
@@ -675,21 +725,25 @@ export default function NewQuote() {
 
       {step === 4 && (() => {
         const totals = getTotalWithCustom();
-        const { labourMultiplier, extraCosts } = getSiteAdjustments();
-        const hasAdjustments = labourMultiplier > 1.0 || extraCosts > 0;
         return (
         <div style={{ maxWidth: 500 }}>
           <div className="card" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span>Materials</span>
+              <span className="money" style={{ fontWeight: 600 }}>{formatCents(
+                (calculation?.materialsTotal || 0) + customItems.reduce((sum, item) => sum + item.qty * item.unitPrice, 0)
+              )}</span>
+            </div>
+            {totals.materialsMarkup > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, color: 'var(--color-accent-aqua)', fontSize: 13 }}>
+                <span>Material Markup ({settings.materialMarkupQuoting || 0}%)</span>
+                <span style={{ fontWeight: 600 }}>+{formatCents(totals.materialsMarkup)}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <span>Labour ({calculation?.labourHours || 0} hrs x {formatCents(calculation?.labourRate || 0)}/hr)</span>
               <span className="money" style={{ fontWeight: 600 }}>{formatCents(calculation?.labourCost || 0)}</span>
             </div>
-            {hasAdjustments && labourMultiplier > 1.0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, color: 'var(--color-warning)', fontSize: 13 }}>
-                <span>Site difficulty adjustment (+{Math.round((labourMultiplier - 1) * 100)}%)</span>
-                <span style={{ fontWeight: 600 }}>+{formatCents(totals.adjustedLabour - (calculation?.labourCost || 0))}</span>
-              </div>
-            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <span>Travel</span>
               <span className="money" style={{ fontWeight: 600 }}>{formatCents(calculation?.travelCost || 0)}</span>
@@ -698,13 +752,13 @@ export default function NewQuote() {
               <span>Consumables ({calculation?.consumablesPercent || 0}%)</span>
               <span className="money" style={{ fontWeight: 600 }}>{formatCents(calculation?.consumablesCost || 0)}</span>
             </div>
-            {extraCosts > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, color: 'var(--color-warning)', fontSize: 13 }}>
-                <span>Site extras (scaffold/skip/permit/tip)</span>
-                <span style={{ fontWeight: 600 }}>+{formatCents(extraCosts)}</span>
+            {totals.breakdown.map((item, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, color: 'var(--color-accent-blue)', fontSize: 13 }}>
+                <span>{item.label}</span>
+                <span style={{ fontWeight: 600 }}>+{formatCents(item.amount)}</span>
               </div>
-            )}
-            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+            ))}
+            <div style={{ borderTop: '1.5px solid var(--color-border)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
               <span>Subtotal</span>
               <span className="money">{formatCents(totals.subtotal)}</span>
             </div>
@@ -716,11 +770,11 @@ export default function NewQuote() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <span>GST ({calculation?.taxRate ?? 10}%)</span>
-              <span className="money" style={{ fontWeight: 600 }}>{formatCents(getTotalWithCustom().taxAmount)}</span>
+              <span className="money" style={{ fontWeight: 600 }}>{formatCents(totals.taxAmount)}</span>
             </div>
-            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 20 }}>
+            <div style={{ borderTop: '1.5px solid var(--color-border)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 20 }}>
               <span>Total</span>
-              <span className="money">{formatCents(getTotalWithCustom().totalPrice)}</span>
+              <span className="money">{formatCents(totals.totalPrice)}</span>
             </div>
           </div>
 
@@ -752,15 +806,13 @@ export default function NewQuote() {
               {Object.entries(measurements).filter(([, v]) => v).map(([k, v]) => (
                 <p key={k}><strong>{k}:</strong> {v}</p>
               ))}
-              {siteConditions.access !== 'easy' && <p><strong>Access:</strong> {siteConditions.access.replace(/_/g, ' ')}</p>}
-              {siteConditions.siteType !== 'new_build' && <p><strong>Site:</strong> Renovation</p>}
-              {siteConditions.storeys !== '1' && <p><strong>Storeys:</strong> {siteConditions.storeys}</p>}
-              {siteConditions.complexity !== 'standard' && <p><strong>Complexity:</strong> {siteConditions.complexity.replace(/_/g, ' ')}</p>}
-              {siteConditions.demolition && <p><strong>Demolition:</strong> Yes</p>}
-              {siteConditions.scaffolding && <p><strong>Scaffolding:</strong> Yes</p>}
-              {siteConditions.skipBin && <p><strong>Skip Bin:</strong> Yes</p>}
-              {siteConditions.permitRequired && <p><strong>Permit:</strong> Yes — {formatCents(Math.round((parseFloat(siteConditions.permitCost) || 0) * 100))}</p>}
-              {siteConditions.scopeNotes && <p><strong>Scope Notes:</strong> {siteConditions.scopeNotes}</p>}
+              {jobAllowances.machineryHire && <p><strong>Machinery:</strong> {jobAllowances.machineryDesc || 'Hire'} — ${jobAllowances.machineryCost || 0}</p>}
+              {jobAllowances.accommodation && <p><strong>Accommodation:</strong> {jobAllowances.accommodationDays || 0} nights</p>}
+              {jobAllowances.mealAllowance && <p><strong>Meals:</strong> {jobAllowances.mealDays || 0} days</p>}
+              {jobAllowances.scaffolding && <p><strong>Scaffolding:</strong> ${jobAllowances.scaffoldingCost || 500}</p>}
+              {jobAllowances.skipBin && <p><strong>Skip Bin:</strong> ${jobAllowances.skipBinCost || 350}</p>}
+              {jobAllowances.permitRequired && <p><strong>Permit:</strong> ${jobAllowances.permitCost || 0}</p>}
+              {jobAllowances.scopeNotes && <p><strong>Scope Notes:</strong> {jobAllowances.scopeNotes}</p>}
             </div>
           </div>
 
@@ -772,8 +824,8 @@ export default function NewQuote() {
               )}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span>Labour ({calculation?.labourHours || 0} hrs{getSiteAdjustments().labourMultiplier > 1 ? ` +${Math.round((getSiteAdjustments().labourMultiplier - 1) * 100)}% site adj.` : ''})</span>
-              <span className="money">{formatCents(getTotalWithCustom().adjustedLabour)}</span>
+              <span>Labour ({calculation?.labourHours || 0} hrs)</span>
+              <span className="money">{formatCents(calculation?.labourCost || 0)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span>Travel</span>
@@ -783,12 +835,12 @@ export default function NewQuote() {
               <span>Consumables</span>
               <span className="money">{formatCents(calculation?.consumablesCost || 0)}</span>
             </div>
-            {getSiteAdjustments().extraCosts > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span>Site Extras</span>
-                <span className="money">{formatCents(getSiteAdjustments().extraCosts)}</span>
+            {getTotalWithCustom().breakdown.map((item, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span>{item.label}</span>
+                <span className="money">{formatCents(item.amount)}</span>
               </div>
-            )}
+            ))}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span>Markup</span>
               <span className="money">{formatCents(calculation?.markup || 0)}</span>
