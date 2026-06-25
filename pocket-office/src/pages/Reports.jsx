@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { db } from '../db';
 import { formatCents } from '../utils/formatCurrency';
+import { calculateDepreciation } from '../utils/depreciationCalc';
+import { calculateGstSummary } from '../utils/gstSummary';
 
 const REPORT_TYPES = ['overview', 'profit_loss', 'expenses', 'gst', 'mileage', 'time', 'assets'];
 
@@ -64,9 +66,10 @@ export default function Reports() {
     const filteredInvoices = invoices.filter(i => (i.datePaid || i.dateSent || '') >= start);
 
     const totalExpenses = filteredExpenses.reduce((s, e) => s + (e.amount || 0), 0);
-    const totalGstPaid = filteredExpenses.reduce((s, e) => s + (e.gstAmount || 0), 0);
     const totalIncome = filteredInvoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.totalAmount || 0), 0);
-    const totalGstCollected = filteredInvoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.gstAmount || 0), 0);
+    const gst = calculateGstSummary(filteredInvoices, filteredExpenses);
+    const totalGstPaid = gst.gstPaid;
+    const totalGstCollected = gst.gstCollected;
 
     const expenseByCategory = {};
     filteredExpenses.forEach(e => {
@@ -101,26 +104,7 @@ export default function Reports() {
       return { jobId, jobNumber: job?.jobNumber || '?', clientName: job?.clientName || 'Unknown', ...times };
     }).sort((a, b) => (b.onSite + b.travel) - (a.onSite + a.travel));
 
-    const assetData = assets.map(a => {
-      let currentValue = a.purchasePrice || 0;
-      if (a.depreciationMethod === 'instant_write_off') {
-        currentValue = 0;
-      } else {
-        const yearsOwned = (Date.now() - new Date(a.purchaseDate).getTime()) / (365.25 * 86400000);
-        const life = a.effectiveLifeYears || 5;
-        if (a.depreciationMethod === 'prime_cost') {
-          const dep = a.purchasePrice * (1 / life) * yearsOwned;
-          currentValue = Math.max(0, a.purchasePrice - Math.round(dep));
-        } else {
-          const rate = 2 / life;
-          let val = a.purchasePrice;
-          for (let i = 0; i < Math.floor(yearsOwned); i++) val = Math.round(val * (1 - rate));
-          val = Math.round(val * (1 - rate * (yearsOwned - Math.floor(yearsOwned))));
-          currentValue = Math.max(0, val);
-        }
-      }
-      return { ...a, currentValue, depreciation: (a.purchasePrice || 0) - currentValue };
-    });
+    const assetData = assets.map(calculateDepreciation);
     const totalPurchaseValue = assetData.reduce((s, a) => s + (a.purchasePrice || 0), 0);
     const totalCurrentValue = assetData.reduce((s, a) => s + a.currentValue, 0);
     const totalDepreciation = totalPurchaseValue - totalCurrentValue;

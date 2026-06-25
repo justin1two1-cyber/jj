@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { db } from '../db';
+import { gstSummaryToRows, calculateGstSummary } from '../utils/gstSummary';
 
 export default function DataExport() {
   const [exporting, setExporting] = useState('');
@@ -46,17 +47,8 @@ export default function DataExport() {
           }));
           downloadFile(toCsv(rows), `mileage-log-${new Date().toISOString().slice(0, 10)}.csv`);
         } else if (dataType === 'gst') {
-          const paidInvoices = invoices.filter(i => i.status === 'paid');
-          const gstCollected = paidInvoices.reduce((s, i) => s + (i.gstAmount || 0), 0);
-          const gstPaid = expenses.reduce((s, e) => s + (e.gstAmount || 0), 0);
-          const rows = [
-            { Label: '1A - GST on Sales', Amount: (gstCollected / 100).toFixed(2) },
-            { Label: '1B - GST on Purchases', Amount: (gstPaid / 100).toFixed(2) },
-            { Label: 'Net GST Payable', Amount: ((gstCollected - gstPaid) / 100).toFixed(2) },
-            { Label: '', Amount: '' },
-            { Label: 'Total Sales (ex GST)', Amount: (paidInvoices.reduce((s, i) => s + (i.subtotal || 0), 0) / 100).toFixed(2) },
-            { Label: 'Total Purchases (ex GST)', Amount: (expenses.reduce((s, e) => s + ((e.amount || 0) - (e.gstAmount || 0)), 0) / 100).toFixed(2) },
-          ];
+          const summary = calculateGstSummary(invoices, expenses);
+          const rows = gstSummaryToRows(summary);
           downloadFile(toCsv(rows), `gst-summary-${new Date().toISOString().slice(0, 10)}.csv`);
         } else if (dataType === 'assets') {
           const rows = assets.map(a => ({
