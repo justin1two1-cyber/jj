@@ -25,6 +25,33 @@
   transition: color 0.15s;
   -webkit-tap-highlight-color: transparent;
   min-width: 56px;
+  position: relative;
+  overflow: hidden;
+}
+
+.bottom-nav-item::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 10%,
+    rgba(26, 95, 42, 0.08) 22%,
+    rgba(60, 200, 150, 0.16) 32%,
+    rgba(100, 180, 255, 0.14) 42%,
+    rgba(200, 140, 255, 0.12) 52%,
+    rgba(255, 200, 100, 0.10) 62%,
+    transparent 72%
+  );
+  background-size: 250% 100%;
+  z-index: 1;
+}
+
+.bottom-nav-item:active::after {
+  opacity: 1;
+  animation: holo-tap 0.5s ease-out;
 }
 
 .bottom-nav-item.active {
