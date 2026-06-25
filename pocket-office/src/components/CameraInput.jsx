@@ -61,13 +61,13 @@ export default function CameraInput({ onCapture, multiple = false, label = 'Take
               <img
                 src={p.url}
                 alt={p.name}
-                style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+                style={{ width: 80, height: 80, objectFit: 'cover', border: '1px solid var(--color-border)' }}
               />
               <button
                 onClick={() => removePhoto(i)}
                 style={{
                   position: 'absolute', top: -6, right: -6,
-                  width: 22, height: 22, borderRadius: '50%',
+                  width: 22, height: 22, 
                   background: 'var(--color-danger)', color: 'white',
                   border: 'none', fontSize: 14, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',

@@ -259,7 +259,7 @@ export default function SWMS() {
             {form.ppe.map((p, i) => (
               <label key={i} style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '6px 12px', borderRadius: 8,
+                padding: '6px 12px', 
                 background: p.included ? 'var(--color-primary)' : 'var(--color-surface)',
                 color: p.included ? '#fff' : 'var(--color-text)',
                 cursor: 'pointer', fontSize: 14,

@@ -347,7 +347,7 @@ export default function NewQuote() {
               <div style={{
                 position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
                 background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)', overflow: 'hidden',
+                overflow: 'hidden',
               }}>
                 {clientSuggestions.map(c => (
                   <div key={c.id} onClick={() => selectExistingClient(c)}
@@ -638,7 +638,7 @@ export default function NewQuote() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {photos.map((p, i) => (
                   <img key={i} src={URL.createObjectURL(p)} alt={`Site photo ${i + 1}`}
-                    style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} />
+                    style={{ width: 60, height: 60, objectFit: 'cover', border: '1px solid var(--color-border)' }} />
                 ))}
               </div>
             </div>

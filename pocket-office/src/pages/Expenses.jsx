@@ -114,10 +114,10 @@ export default function Expenses() {
       {viewingReceipt && (
         <div onClick={() => { URL.revokeObjectURL(viewingReceipt); setViewingReceipt(null); }}
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100,
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100,
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, cursor: 'pointer',
           }}>
-          <img src={viewingReceipt} alt="Receipt" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 'var(--radius)', objectFit: 'contain' }} />
+          <img src={viewingReceipt} alt="Receipt" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
         </div>
       )}
     </div>

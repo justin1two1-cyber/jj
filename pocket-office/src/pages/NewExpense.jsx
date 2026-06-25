@@ -103,7 +103,7 @@ export default function NewExpense() {
             <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{ display: 'none' }} />
           </label>
           {photoPreview && (
-            <img src={photoPreview} alt="Receipt" style={{ width: '100%', maxWidth: 200, marginTop: 8, borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }} />
+            <img src={photoPreview} alt="Receipt" style={{ width: '100%', maxWidth: 200, marginTop: 8, border: '1px solid var(--color-border)' }} />
           )}
         </div>
 

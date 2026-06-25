@@ -178,7 +178,7 @@ export default function QuoteDetail() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {photoUrls.map((url, i) => (
               <img key={i} src={url} alt={`Site ${i + 1}`}
-                style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }} />
+                style={{ width: 80, height: 80, objectFit: 'cover', border: '1px solid var(--color-border)' }} />
             ))}
           </div>
         </div>

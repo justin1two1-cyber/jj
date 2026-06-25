@@ -80,7 +80,7 @@ export default function VoiceInput({ onTranscript, placeholder = 'Tap mic to spe
           color: 'var(--color-text)',
           background: 'var(--color-surface)',
           border: `1px solid ${isListening ? 'var(--color-danger)' : 'var(--color-border)'}`,
-          borderRadius: 'var(--radius-sm)',
+          
           padding: '12px 16px',
           fontFamily: 'inherit',
         }}
@@ -95,7 +95,7 @@ export default function VoiceInput({ onTranscript, placeholder = 'Tap mic to spe
             top: 8,
             width: 36,
             height: 36,
-            borderRadius: '50%',
+            
             border: 'none',
             background: isListening ? 'var(--color-danger)' : 'var(--color-surface-hover)',
             color: isListening ? 'white' : 'var(--color-text-secondary)',
@@ -113,7 +113,7 @@ export default function VoiceInput({ onTranscript, placeholder = 'Tap mic to spe
       )}
       {isListening && (
         <div style={{ fontSize: 12, color: 'var(--color-danger)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-danger)', animation: 'pulse 1s infinite' }} />
+          <span style={{ width: 8, height: 8,  background: 'var(--color-danger)', animation: 'pulse 1s infinite' }} />
           Listening...
         </div>
       )}

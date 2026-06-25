@@ -30,11 +30,10 @@ export default function InstallPrompt() {
 
   return (
     <div style={{
-      position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 1000,
-      background: 'var(--color-surface-raised)', border: '1px solid var(--color-primary)',
-      borderRadius: 'var(--radius-md)', padding: 16,
+      position: 'fixed', bottom: 76, left: 16, right: 16, zIndex: 1000,
+      background: 'var(--color-surface)', border: '2px solid var(--color-primary)',
+      borderRadius: 0, padding: 16,
       display: 'flex', alignItems: 'center', gap: 12,
-      boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
     }}>
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>Install Pocket Office</div>

@@ -3,7 +3,7 @@
   width: var(--sidebar-width);
   height: 100%;
   background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
+  border-right: 2px solid var(--color-border);
   flex-shrink: 0;
   overflow-y: auto;
 }
@@ -17,13 +17,13 @@
   align-items: center;
   gap: 12px;
   padding: 20px 16px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 2px solid var(--color-border);
 }
 
 .sidebar-logo {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 0;
   background: var(--color-primary);
   color: white;
   display: flex;
@@ -32,17 +32,19 @@
   font-weight: 800;
   font-size: 14px;
   flex-shrink: 0;
+  font-family: var(--font-mono);
 }
 
 .sidebar-title {
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.2;
 }
 
 .sidebar-subtitle {
   font-size: 11px;
   color: var(--color-text-muted);
+  font-family: var(--font-mono);
 }
 
 .sidebar-nav {
@@ -51,29 +53,32 @@
 }
 
 .sidebar-section {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .sidebar-section-title {
-  font-size: 11px;
-  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  padding: 12px 12px 4px;
+  letter-spacing: 1.5px;
+  padding: 14px 12px 4px;
+  border-bottom: 1px solid #e0dbd3;
+  margin-bottom: 4px;
 }
 
 .sidebar-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  border-radius: 0;
   color: var(--color-text-secondary);
   text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-  transition: background 0.15s, color 0.15s;
+  font-size: 13px;
+  font-weight: 400;
+  transition: background 0.1s, color 0.1s;
 }
 
 .sidebar-item:hover {
@@ -82,12 +87,15 @@
 }
 
 .sidebar-item.active {
-  background: rgba(59, 130, 246, 0.15);
+  background: var(--color-primary-light);
   color: var(--color-primary);
+  font-weight: 700;
+  border-left: 3px solid var(--color-primary);
+  padding-left: 9px;
 }
 
 .sidebar-item-icon {
-  font-size: 16px;
+  font-size: 15px;
   width: 20px;
   text-align: center;
 }

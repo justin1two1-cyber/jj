@@ -151,10 +151,12 @@ export default function WeatherCheck() {
                   Rain: {day.rainChance}% · Wind: {day.wind}km/h
                 </div>
                 <div style={{
-                  marginTop: 8, padding: '4px 12px', borderRadius: 100,
-                  background: day.workSafe ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  marginTop: 8, padding: '4px 12px',
+                  background: day.workSafe ? '#e8f0ea' : '#f5e8e8',
                   color: day.workSafe ? 'var(--color-success)' : 'var(--color-danger)',
-                  fontSize: 13, fontWeight: 600, display: 'inline-block',
+                  border: day.workSafe ? '1px solid var(--color-success)' : '1px solid var(--color-danger)',
+                  fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600,
+                  textTransform: 'uppercase', letterSpacing: '0.5px', display: 'inline-block',
                 }}>
                   {day.workSafe ? 'Good to work' : 'Check conditions'}
                 </div>

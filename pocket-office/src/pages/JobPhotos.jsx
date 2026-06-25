@@ -133,7 +133,7 @@ export default function JobPhotos() {
               <div style={{
                 width: '100%', paddingBottom: '100%',
                 background: 'var(--color-surface-hover)',
-                borderRadius: 'var(--radius-sm)', marginBottom: 8,
+                marginBottom: 8,
                 position: 'relative', overflow: 'hidden',
               }}>
                 {p.blobUrl ? (

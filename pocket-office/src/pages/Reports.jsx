@@ -299,7 +299,7 @@ export default function Reports() {
       {reportType === 'expenses' && (() => {
         const entries = Object.entries(data.expenseByCategory || {}).sort((a, b) => b[1] - a[1]);
         const maxAmount = entries.length > 0 ? Math.max(...entries.map(([, a]) => a)) : 1;
-        const catColors = { materials: '#3b82f6', fuel: '#f59e0b', tools: '#8b5cf6', subcontractor: '#06b6d4', food: '#f97316', insurance: '#22c55e', rego: '#ec4899', other: '#64748b' };
+        const catColors = { materials: '#1a5f2a', fuel: '#b8860b', tools: '#5c4033', subcontractor: '#2a6478', food: '#c4651a', insurance: '#3d6b3d', rego: '#7a3b5c', other: '#6b6b6b' };
         return (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -315,9 +315,9 @@ export default function Reports() {
                       <span style={{ fontWeight: 600 }}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
                       <span className="money">{formatCents(amount)}</span>
                     </div>
-                    <div style={{ height: 8, background: 'var(--color-surface-hover)', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: 8, background: 'var(--color-surface-hover)', overflow: 'hidden' }}>
                       <div style={{
-                        height: '100%', borderRadius: 4,
+                        height: '100%',
                         width: `${(amount / maxAmount) * 100}%`,
                         background: catColors[cat] || '#64748b',
                         transition: 'width 0.3s',

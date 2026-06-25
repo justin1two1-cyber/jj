@@ -228,7 +228,7 @@ export default function TimeLog() {
       {activeTimer && (
         <div className="card" style={{ marginBottom: 20, textAlign: 'center', borderColor: 'var(--color-success)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--color-success)', animation: 'pulse 1.5s infinite' }} />
+            <span style={{ width: 10, height: 10, background: 'var(--color-success)', animation: 'pulse 1.5s infinite' }} />
             <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>
               {activeTimer.arrivedTime ? 'On Site' : 'Travelling'}
             </span>

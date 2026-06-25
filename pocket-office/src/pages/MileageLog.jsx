@@ -178,7 +178,7 @@ export default function MileageLog() {
       {tracking && (
         <div className="card" style={{ marginBottom: 20, borderColor: 'var(--color-success)', textAlign: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--color-success)', animation: 'pulse 1.5s infinite' }} />
+            <span style={{ width: 10, height: 10, background: 'var(--color-success)', animation: 'pulse 1.5s infinite' }} />
             <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>Tracking Trip</span>
           </div>
           <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 4 }}>{liveDistance.toFixed(1)} km</div>
