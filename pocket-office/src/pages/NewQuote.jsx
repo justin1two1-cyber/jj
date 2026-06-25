@@ -67,6 +67,16 @@ export default function NewQuote() {
             setSelectedTemplate({ id: null, name: 'Custom', measurementFields: [], defaultMaterials: [], labourFormula: '0', consumablesPercent: 0 });
           }
 
+          const savedCustomItems = (quote.materials || [])
+            .filter(m => m.materialId?.startsWith('custom_'))
+            .map(m => ({
+              name: m.name,
+              qty: m.qty,
+              unitPrice: m.unitPrice,
+              unitPriceDollars: (m.unitPrice / 100).toFixed(2),
+            }));
+          if (savedCustomItems.length > 0) setCustomItems(savedCustomItems);
+
           if (quote.photos?.length > 0) {
             const blobs = [];
             for (const key of quote.photos) {
