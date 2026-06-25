@@ -60,14 +60,15 @@ export default function SupplierFinder() {
     return stores;
   }
 
-  async function searchSuppliers() {
-    if (!search.trim()) return;
+  async function searchSuppliers(query) {
+    const term = query || search;
+    if (!term.trim()) return;
     setLoading(true);
 
     if (apiKey && apiKey !== 'your_api_key_here' && location) {
       try {
-        const storeNames = matchingStores(search);
-        const searchTerm = storeNames.length > 0 ? storeNames[0].name : `${search} building supplies`;
+        const storeNames = matchingStores(term);
+        const searchTerm = storeNames.length > 0 ? storeNames[0].name : `${term} building supplies`;
         const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${location.lat},${location.lng}&radius=25000&keyword=${encodeURIComponent(searchTerm)}&key=${apiKey}`;
         const res = await fetch(url);
         const data = await res.json();
@@ -95,7 +96,7 @@ export default function SupplierFinder() {
       }
     }
 
-    setResults(fallbackSearch(search));
+    setResults(fallbackSearch(term));
     setLoading(false);
   }
 
@@ -114,7 +115,7 @@ export default function SupplierFinder() {
 
   function handleQuickSearch(q) {
     setSearch(q);
-    setTimeout(() => searchSuppliers(), 0);
+    searchSuppliers(q);
   }
 
   return (

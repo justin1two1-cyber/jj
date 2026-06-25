@@ -188,6 +188,7 @@ export default function QuoteDetail() {
         {quote.status === 'draft' && <button className="btn btn-primary btn-lg" onClick={() => updateStatus('sent')}>Mark as Sent</button>}
         {quote.status === 'sent' && <button className="btn btn-success btn-lg" onClick={convertToJob}>Accept & Create Job</button>}
         {quote.status === 'sent' && <button className="btn btn-danger btn-lg" onClick={() => updateStatus('declined')}>Declined</button>}
+        {quote.jobId && <button className="btn btn-primary btn-lg" onClick={() => navigate(`/jobs/${quote.jobId}`)}>View Job</button>}
         <button className="btn btn-secondary btn-lg" onClick={duplicateQuote}>Duplicate</button>
         <button className="btn btn-secondary btn-lg" onClick={shareQuote}>Share</button>
         {quote.status === 'draft' && (

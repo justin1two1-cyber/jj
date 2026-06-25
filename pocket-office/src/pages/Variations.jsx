@@ -101,7 +101,7 @@ export default function Variations() {
 
     const allVars = await db.variations.where('jobId').equals(jobId).toArray();
     const totalVariations = allVars
-      .filter(v => v.status === 'approved' || (v.id === varId && status === 'approved'))
+      .filter(v => v.id === varId ? status === 'approved' : v.status === 'approved')
       .reduce((s, v) => s + (v.amount || 0), 0);
     await db.jobs.update(jobId, { totalVariations, updatedAt: now });
 

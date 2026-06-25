@@ -211,7 +211,11 @@ export default function ClientDetail() {
         </section>
       )}
 
-      <button className="btn btn-danger" style={{ marginTop: 16 }} onClick={deleteClient}>Delete Client</button>
+      <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+        <button className="btn btn-primary" onClick={() => navigate('/quotes/new')}>New Quote</button>
+        <button className="btn btn-secondary" onClick={() => navigate(`/invoices/new`)}>New Invoice</button>
+        <button className="btn btn-danger" onClick={deleteClient}>Delete Client</button>
+      </div>
     </div>
   );
 }

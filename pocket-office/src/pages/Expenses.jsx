@@ -40,7 +40,7 @@ export default function Expenses() {
   const total = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const gstTotal = expenses.reduce((sum, e) => sum + (e.gstAmount || 0), 0);
 
-  const categories = ['all', 'materials', 'fuel', 'tools', 'subcontractor', 'food', 'insurance', 'other'];
+  const categories = ['all', 'materials', 'fuel', 'tools', 'subcontractor', 'food', 'insurance', 'rego', 'other'];
 
   return (
     <div className="page">

@@ -144,6 +144,14 @@ export default function InvoiceDetail() {
         {(invoice.status === 'sent' || isOverdue) && <button className="btn btn-success btn-lg" onClick={() => updateStatus('paid')}>Mark as Paid</button>}
         {(invoice.status === 'sent' || isOverdue) && <button className="btn btn-secondary btn-lg" onClick={generateReminder}>Send Reminder</button>}
         <button className="btn btn-secondary btn-lg" onClick={shareInvoice}>Share Invoice</button>
+        {invoice.jobId && <button className="btn btn-secondary btn-lg" onClick={() => navigate(`/jobs/${invoice.jobId}`)}>View Job</button>}
+        {invoice.status === 'draft' && (
+          <button className="btn btn-danger btn-lg" onClick={async () => {
+            if (!confirm('Delete this invoice?')) return;
+            await db.invoices.delete(id);
+            navigate('/invoices');
+          }}>Delete</button>
+        )}
       </div>
     </div>
   );
