@@ -1,6 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 
 const menuItems = [
+  { to: '/employees', icon: '👷', label: 'Employees', desc: 'Manage your crew' },
+  { to: '/clock', icon: '⏱', label: 'Clock In / Out', desc: 'Employee clock on and off' },
+  { to: '/timesheets', icon: '📋', label: 'Timesheets', desc: 'Review employee hours and shifts' },
   { to: '/materials', icon: '▦', label: 'Materials Database', desc: 'View and update material prices' },
   { to: '/clients', icon: '⊕', label: 'Clients', desc: 'Client contact book' },
   { to: '/invoices', icon: '⊞', label: 'Invoices', desc: 'Create and track invoices' },

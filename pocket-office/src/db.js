@@ -29,6 +29,31 @@ db.version(1).stores({
   photoBlobs: 'key',
 });
 
+db.version(2).stores({
+  settings: 'key',
+  clients: 'id, name, phone, isRepeatClient, updatedAt',
+  templates: 'id, name, category, isCustom',
+  materials: 'id, name, category, isCustom',
+  quotes: 'id, clientId, templateId, quoteNumber, status, createdAt, updatedAt',
+  jobs: 'id, quoteId, clientId, jobNumber, status, createdAt, updatedAt',
+  variations: 'id, jobId, variationNumber, status, createdAt',
+  expenses: 'id, jobId, category, date, createdAt',
+  invoices: 'id, jobId, clientId, invoiceNumber, status, createdAt',
+  jobDiary: 'id, jobId, date, createdAt',
+  jobPhotos: 'id, jobId, phase, takenAt',
+  mileageLog: 'id, jobId, date, createdAt',
+  timeLog: 'id, jobId, date, createdAt',
+  savedLocations: 'id, name, type',
+  assets: 'id, name, category, createdAt',
+  compliance: 'id, type, expiryDate, createdAt',
+  swmsDocs: 'id, jobId, status, createdAt',
+  swmsTemplates: 'id, name, category, isCustom',
+  counters: 'key',
+  photoBlobs: 'key',
+  employees: 'id, name, status, createdAt',
+  timesheets: 'id, employeeId, date, status, createdAt',
+});
+
 export async function storePhoto(key, blob) {
   await db.photoBlobs.put({ key, blob, storedAt: new Date().toISOString() });
 }

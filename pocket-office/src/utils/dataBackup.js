@@ -4,7 +4,8 @@ const TABLE_NAMES = [
   'settings', 'clients', 'templates', 'materials', 'quotes', 'jobs',
   'variations', 'expenses', 'invoices', 'jobDiary', 'jobPhotos',
   'mileageLog', 'timeLog', 'savedLocations', 'assets', 'compliance',
-  'swmsDocs', 'swmsTemplates', 'counters', 'photoBlobs'
+  'swmsDocs', 'swmsTemplates', 'counters', 'photoBlobs',
+  'employees', 'timesheets'
 ];
 
 export async function exportDatabase() {

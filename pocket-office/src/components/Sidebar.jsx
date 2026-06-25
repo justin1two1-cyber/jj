@@ -26,6 +26,14 @@ const sections = [
     ]
   },
   {
+    title: 'Crew',
+    items: [
+      { to: '/employees', icon: '👷', label: 'Employees' },
+      { to: '/clock', icon: '⏱', label: 'Clock In/Out' },
+      { to: '/timesheets', icon: '📋', label: 'Timesheets' },
+    ]
+  },
+  {
     title: 'Tools',
     items: [
       { to: '/materials', icon: '▦', label: 'Materials' },

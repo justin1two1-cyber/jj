@@ -35,6 +35,9 @@ const Reports = lazy(() => import('./pages/Reports'));
 const DataExport = lazy(() => import('./pages/DataExport'));
 const Settings = lazy(() => import('./pages/Settings'));
 const MoreMenu = lazy(() => import('./pages/MoreMenu'));
+const Employees = lazy(() => import('./pages/Employees'));
+const ClockInOut = lazy(() => import('./pages/ClockInOut'));
+const Timesheets = lazy(() => import('./pages/Timesheets'));
 
 function Loading() {
   return (
@@ -84,6 +87,9 @@ export default function App() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/data-export" element={<DataExport />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/employees" element={<Employees />} />
+            <Route path="/clock" element={<ClockInOut />} />
+            <Route path="/timesheets" element={<Timesheets />} />
             <Route path="/more" element={<MoreMenu />} />
           </Routes>
         </Suspense>
