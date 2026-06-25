@@ -20,6 +20,7 @@
   "devDependencies": {
     "@types/react": "^19.1.0",
     "@vitejs/plugin-react": "^4.4.1",
+    "playwright": "^1.61.1",
     "vite": "^6.3.5",
     "vite-plugin-pwa": "^1.0.0"
   }
