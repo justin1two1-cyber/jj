@@ -56,5 +56,10 @@
 
   { "id": "retaining_block", "name": "Retaining Wall Block 400x200x200", "category": "concrete", "unit": "each", "defaultPrice": 800, "userPrice": null, "supplier": "", "wasteFactor": 1.05, "supplierNotes": "" },
   { "id": "ag_drain_100mm", "name": "Ag Drain Pipe 100mm (per m)", "category": "general", "unit": "linear_m", "defaultPrice": 500, "userPrice": null, "supplier": "", "wasteFactor": 1.05, "supplierNotes": "" },
-  { "id": "geofabric_m2", "name": "Geotextile Fabric (per sqm)", "category": "general", "unit": "sq_m", "defaultPrice": 350, "userPrice": null, "supplier": "", "wasteFactor": 1.1, "supplierNotes": "" }
+  { "id": "geofabric_m2", "name": "Geotextile Fabric (per sqm)", "category": "general", "unit": "sq_m", "defaultPrice": 350, "userPrice": null, "supplier": "", "wasteFactor": 1.1, "supplierNotes": "" },
+
+  { "id": "paint_trim_4l", "name": "Exterior Trim Paint 4L", "category": "general", "unit": "each", "defaultPrice": 7500, "userPrice": null, "supplier": "", "wasteFactor": 1.0, "supplierNotes": "" },
+  { "id": "caulk_tube", "name": "Exterior Caulk 300ml", "category": "general", "unit": "each", "defaultPrice": 800, "userPrice": null, "supplier": "", "wasteFactor": 1.0, "supplierNotes": "" },
+  { "id": "sugar_soap_5l", "name": "Sugar Soap 5L", "category": "general", "unit": "each", "defaultPrice": 1800, "userPrice": null, "supplier": "", "wasteFactor": 1.0, "supplierNotes": "" },
+  { "id": "carport_rafter_70x35", "name": "Treated Pine Rafter 70x35mm", "category": "timber", "unit": "linear_m", "defaultPrice": 420, "userPrice": null, "supplier": "", "wasteFactor": 1.05, "supplierNotes": "" }
 ]

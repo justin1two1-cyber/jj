@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
-import { db, getNextNumber, getAllSettings, storePhoto } from '../db';
+import { db, getNextNumber, getAllSettings, storePhoto, getPhoto } from '../db';
 import { calculateQuote } from '../utils/quoteEngine';
 import { formatCents } from '../utils/formatCurrency';
 import CameraInput from '../components/CameraInput';
@@ -11,7 +11,9 @@ const STEPS = ['Template', 'Client', 'Measurements', 'Materials', 'Costs', 'Summ
 
 export default function NewQuote() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
+  const { id: editId } = useParams();
+  const isEditing = !!editId;
+  const [step, setStep] = useState(isEditing ? 1 : 0);
   const [templates, setTemplates] = useState([]);
   const [materials, setMaterials] = useState({});
   const [settings, setSettings] = useState({});
@@ -21,9 +23,11 @@ export default function NewQuote() {
   const [calculation, setCalculation] = useState(null);
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState([]);
+  const [existingPhotoKeys, setExistingPhotoKeys] = useState([]);
   const [existingClients, setExistingClients] = useState([]);
   const [clientSuggestions, setClientSuggestions] = useState([]);
   const [wasteOverrides, setWasteOverrides] = useState({});
+  const [editQuoteData, setEditQuoteData] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -39,6 +43,39 @@ export default function NewQuote() {
       setMaterials(matMap);
       setSettings(setts);
       setExistingClients(clients);
+
+      if (editId) {
+        const quote = await db.quotes.get(editId);
+        if (quote) {
+          setEditQuoteData(quote);
+          setClientInfo({
+            clientName: quote.clientName || '',
+            clientPhone: quote.clientPhone || '',
+            clientEmail: quote.clientEmail || '',
+            siteAddress: quote.siteAddress || '',
+          });
+          setMeasurements(quote.measurements || {});
+          setNotes(quote.notes || '');
+          setExistingPhotoKeys(quote.photos || []);
+
+          if (quote.templateId) {
+            const tmpl = tmpls.find(t => t.id === quote.templateId);
+            if (tmpl) setSelectedTemplate(tmpl);
+          }
+          if (!quote.templateId) {
+            setSelectedTemplate({ id: null, name: 'Custom', measurementFields: [], defaultMaterials: [], labourFormula: '0', consumablesPercent: 0 });
+          }
+
+          if (quote.photos?.length > 0) {
+            const blobs = [];
+            for (const key of quote.photos) {
+              const blob = await getPhoto(key);
+              if (blob) blobs.push(blob);
+            }
+            setPhotos(blobs);
+          }
+        }
+      }
     }
     load();
   }, []);
@@ -113,11 +150,50 @@ export default function NewQuote() {
   }
 
   async function saveQuote() {
-    const quoteNumber = await getNextNumber('PO');
     const now = new Date().toISOString();
 
-    const photoKeys = photos.map(() => `quote_photo_${uuid()}`);
+    if (isEditing && editQuoteData) {
+      const { deletePhoto } = await import('../db');
+      for (const key of existingPhotoKeys) await deletePhoto(key);
 
+      const photoKeys = photos.map(() => `quote_photo_${uuid()}`);
+      for (let i = 0; i < photos.length; i++) {
+        await storePhoto(photoKeys[i], photos[i]);
+      }
+
+      await db.quotes.update(editId, {
+        templateId: selectedTemplate?.id || null,
+        ...clientInfo,
+        measurements,
+        materials: calculation?.materials || [],
+        labourHours: calculation?.labourHours || 0,
+        labourRate: calculation?.labourRate || 0,
+        travelCost: calculation?.travelCost || 0,
+        consumablesCost: calculation?.consumablesCost || 0,
+        subtotal: calculation?.subtotal || 0,
+        markupPercent: calculation?.markupPercent || 0,
+        taxRate: calculation?.taxRate || 0,
+        taxAmount: calculation?.taxAmount || 0,
+        totalPrice: calculation?.totalPrice || 0,
+        notes,
+        photos: photoKeys,
+        updatedAt: now,
+      });
+
+      if (clientInfo.clientName) {
+        const existing = await db.clients.where('name').equals(clientInfo.clientName).first();
+        if (existing) {
+          await db.quotes.update(editId, { clientId: existing.id });
+        }
+      }
+
+      navigate(`/quotes/${editId}`);
+      return;
+    }
+
+    const quoteNumber = await getNextNumber('PO');
+
+    const photoKeys = photos.map(() => `quote_photo_${uuid()}`);
     for (let i = 0; i < photos.length; i++) {
       await storePhoto(photoKeys[i], photos[i]);
     }
@@ -180,7 +256,7 @@ export default function NewQuote() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>New Quote</h1>
+          <h1>{isEditing ? 'Edit Quote' : 'New Quote'}</h1>
           <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 2 }}>
             Step {step + 1} of {STEPS.length}: {STEPS[step]}
           </div>
@@ -470,7 +546,7 @@ export default function NewQuote() {
               Start Over
             </button>
             <button className="btn btn-primary btn-lg" style={{ flex: 2 }} onClick={saveQuote}>
-              Save Quote
+              {isEditing ? 'Update Quote' : 'Save Quote'}
             </button>
           </div>
         </div>

@@ -185,6 +185,7 @@ export default function QuoteDetail() {
       )}
 
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
+        {quote.status === 'draft' && <button className="btn btn-primary btn-lg" onClick={() => navigate(`/quotes/${id}/edit`)}>Edit</button>}
         {quote.status === 'draft' && <button className="btn btn-primary btn-lg" onClick={() => updateStatus('sent')}>Mark as Sent</button>}
         {quote.status === 'sent' && <button className="btn btn-success btn-lg" onClick={convertToJob}>Accept & Create Job</button>}
         {quote.status === 'sent' && <button className="btn btn-danger btn-lg" onClick={() => updateStatus('declined')}>Declined</button>}

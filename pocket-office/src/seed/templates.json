@@ -190,6 +190,53 @@
     "consumablesPercent": 8
   },
   {
+    "id": "tmpl_painting_exterior",
+    "name": "Exterior Painting",
+    "category": "painting",
+    "description": "Exterior walls, eaves, and trim painting including prep, wash, prime, and two coats",
+    "measurementFields": [
+      { "name": "wallArea", "label": "Total Wall Area", "unit": "sqm", "required": true },
+      { "name": "eaveArea", "label": "Eave/Soffit Area", "unit": "sqm", "required": false, "default": 0 },
+      { "name": "trimLength", "label": "Trim/Fascia Length", "unit": "m", "required": false, "default": 0 },
+      { "name": "coats", "label": "Number of Coats", "unit": "count", "required": false, "default": 2 }
+    ],
+    "defaultMaterials": [
+      { "materialId": "paint_exterior_10l", "qtyFormula": "ceil((wallArea + eaveArea) * coats / 100)", "wasteFactor": 1.0 },
+      { "materialId": "primer_10l", "qtyFormula": "ceil((wallArea + eaveArea) / 100)", "wasteFactor": 1.0 },
+      { "materialId": "paint_trim_4l", "qtyFormula": "ceil(trimLength * 0.3 * coats / 40)", "wasteFactor": 1.0 },
+      { "materialId": "caulk_tube", "qtyFormula": "ceil(trimLength / 6)", "wasteFactor": 1.0 },
+      { "materialId": "sugar_soap_5l", "qtyFormula": "ceil((wallArea + eaveArea) / 200)", "wasteFactor": 1.0 }
+    ],
+    "labourFormula": "(wallArea + eaveArea) * 0.2 * coats + (wallArea + eaveArea) * 0.15 + trimLength * 0.1",
+    "consumablesPercent": 10
+  },
+  {
+    "id": "tmpl_carport",
+    "name": "Carport",
+    "category": "outdoor",
+    "description": "Steel or timber carport with concrete slab, posts, beams, and colorbond roofing",
+    "measurementFields": [
+      { "name": "length", "label": "Carport Length", "unit": "m", "required": true },
+      { "name": "width", "label": "Carport Width", "unit": "m", "required": true },
+      { "name": "height", "label": "Post Height", "unit": "m", "required": true, "default": 2.7 },
+      { "name": "hasSlab", "label": "Concrete Slab", "unit": "yes_no", "required": false, "default": 1 }
+    ],
+    "defaultMaterials": [
+      { "materialId": "post_100x100", "qtyFormula": "ceil(length / 3 + 1) * 2", "wasteFactor": 1.0 },
+      { "materialId": "hardwood_beam_200x50", "qtyFormula": "length * 2 + width * ceil(length / 3 + 1)", "wasteFactor": 1.05 },
+      { "materialId": "carport_rafter_70x35", "qtyFormula": "ceil(length / 0.9) * width", "wasteFactor": 1.05 },
+      { "materialId": "colorbond_sheet", "qtyFormula": "area / 0.762", "wasteFactor": 1.05 },
+      { "materialId": "gutter_quad", "qtyFormula": "length * 2", "wasteFactor": 1.05 },
+      { "materialId": "downpipe_90mm", "qtyFormula": "4 * 3", "wasteFactor": 1.05 },
+      { "materialId": "concrete_premix_m3", "qtyFormula": "hasSlab * area * 0.1", "wasteFactor": 1.05 },
+      { "materialId": "concrete_20kg", "qtyFormula": "ceil(length / 3 + 1) * 2 * 2", "wasteFactor": 1.0 },
+      { "materialId": "coach_bolt_m10", "qtyFormula": "ceil(length / 3 + 1) * 2 * 4", "wasteFactor": 1.0 },
+      { "materialId": "roofing_screw", "qtyFormula": "ceil(area * 12 / 250)", "wasteFactor": 1.0 }
+    ],
+    "labourFormula": "area * 1.5 + hasSlab * area * 0.8 + height * 2",
+    "consumablesPercent": 5
+  },
+  {
     "id": "tmpl_hourly_general",
     "name": "General Hourly Work",
     "category": "general",

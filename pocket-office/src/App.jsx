@@ -58,6 +58,7 @@ export default function App() {
             <Route path="/quotes" element={<QuotesList />} />
             <Route path="/quotes/new" element={<NewQuote />} />
             <Route path="/quotes/:id" element={<QuoteDetail />} />
+            <Route path="/quotes/:id/edit" element={<NewQuote />} />
             <Route path="/jobs" element={<Jobs />} />
             <Route path="/jobs/:id" element={<JobDetail />} />
             <Route path="/jobs/:id/diary" element={<JobDiary />} />
