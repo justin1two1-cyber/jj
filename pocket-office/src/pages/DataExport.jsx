@@ -7,10 +7,12 @@ export default function DataExport() {
   async function handleExport(platform, dataType) {
     setExporting(`${platform}-${dataType}`);
     try {
-      const [expenses, invoices, clients] = await Promise.all([
+      const [expenses, invoices, clients, mileage, assets] = await Promise.all([
         db.expenses.toArray(),
         db.invoices.toArray(),
         db.clients.toArray(),
+        db.mileageLog.toArray(),
+        db.assets.toArray(),
       ]);
 
       if (platform === 'xero') {
@@ -29,6 +31,46 @@ export default function DataExport() {
       } else if (platform === 'backup') {
         const { exportDatabase } = await import('../utils/dataBackup');
         exportDatabase();
+      } else if (platform === 'csv') {
+        const { toCsv, downloadFile } = await import('../utils/exports/csvHelpers');
+        if (dataType === 'mileage') {
+          const rows = mileage.map(m => ({
+            Date: m.date,
+            From: m.startAddress || '',
+            To: m.endAddress || '',
+            'Distance (km)': m.distanceKm,
+            Purpose: m.purpose || '',
+            'ATO Rate (c/km)': m.atoRatePerKm,
+            'Deduction ($)': ((m.deductionAmount || 0) / 100).toFixed(2),
+            'Auto Detected': m.autoDetected ? 'Yes' : 'No',
+          }));
+          downloadFile(toCsv(rows), `mileage-log-${new Date().toISOString().slice(0, 10)}.csv`);
+        } else if (dataType === 'gst') {
+          const paidInvoices = invoices.filter(i => i.status === 'paid');
+          const gstCollected = paidInvoices.reduce((s, i) => s + (i.gstAmount || 0), 0);
+          const gstPaid = expenses.reduce((s, e) => s + (e.gstAmount || 0), 0);
+          const rows = [
+            { Label: '1A - GST on Sales', Amount: (gstCollected / 100).toFixed(2) },
+            { Label: '1B - GST on Purchases', Amount: (gstPaid / 100).toFixed(2) },
+            { Label: 'Net GST Payable', Amount: ((gstCollected - gstPaid) / 100).toFixed(2) },
+            { Label: '', Amount: '' },
+            { Label: 'Total Sales (ex GST)', Amount: (paidInvoices.reduce((s, i) => s + (i.subtotal || 0), 0) / 100).toFixed(2) },
+            { Label: 'Total Purchases (ex GST)', Amount: (expenses.reduce((s, e) => s + ((e.amount || 0) - (e.gstAmount || 0)), 0) / 100).toFixed(2) },
+          ];
+          downloadFile(toCsv(rows), `gst-summary-${new Date().toISOString().slice(0, 10)}.csv`);
+        } else if (dataType === 'assets') {
+          const rows = assets.map(a => ({
+            Name: a.name,
+            Category: a.category,
+            'Purchase Date': a.purchaseDate,
+            'Purchase Price ($)': ((a.purchasePrice || 0) / 100).toFixed(2),
+            'Depreciation Method': a.depreciationMethod.replace(/_/g, ' '),
+            'Effective Life (years)': a.effectiveLifeYears || '',
+            'Serial Number': a.serialNumber || '',
+            Supplier: a.supplier || '',
+          }));
+          downloadFile(toCsv(rows), `asset-register-${new Date().toISOString().slice(0, 10)}.csv`);
+        }
       }
     } catch (err) {
       alert('Export failed: ' + err.message);
@@ -119,6 +161,27 @@ export default function DataExport() {
             </div>
           </div>
         ))}
+      </section>
+
+      <section style={{ marginBottom: 32 }}>
+        <h2 style={{ marginBottom: 16 }}>Tax & Business Reports</h2>
+        <p style={{ color: 'var(--color-text-muted)', marginBottom: 16, fontSize: 14 }}>
+          Download CSV reports for your accountant or ATO records.
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" style={{ padding: '10px 16px', fontSize: 13 }}
+            onClick={() => handleExport('csv', 'gst')} disabled={exporting === 'csv-gst'}>
+            {exporting === 'csv-gst' ? 'Exporting...' : 'GST Summary (BAS)'}
+          </button>
+          <button className="btn btn-secondary" style={{ padding: '10px 16px', fontSize: 13 }}
+            onClick={() => handleExport('csv', 'mileage')} disabled={exporting === 'csv-mileage'}>
+            {exporting === 'csv-mileage' ? 'Exporting...' : 'Mileage Log (ATO)'}
+          </button>
+          <button className="btn btn-secondary" style={{ padding: '10px 16px', fontSize: 13 }}
+            onClick={() => handleExport('csv', 'assets')} disabled={exporting === 'csv-assets'}>
+            {exporting === 'csv-assets' ? 'Exporting...' : 'Asset Register'}
+          </button>
+        </div>
       </section>
 
       <section style={{ marginBottom: 32 }}>

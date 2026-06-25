@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { db, getPhoto } from '../db';
+import { db, getPhoto, getAllSettings } from '../db';
 import { formatCents } from '../utils/formatCurrency';
 
 export default function QuoteDetail() {
@@ -8,10 +8,12 @@ export default function QuoteDetail() {
   const navigate = useNavigate();
   const [quote, setQuote] = useState(null);
   const [photoUrls, setPhotoUrls] = useState([]);
+  const [settings, setSettings] = useState({});
 
   useEffect(() => {
-    db.quotes.get(id).then(async (q) => {
+    Promise.all([db.quotes.get(id), getAllSettings()]).then(async ([q, setts]) => {
       setQuote(q);
+      setSettings(setts);
       if (q?.photos?.length > 0) {
         const urls = [];
         for (const key of q.photos) {
@@ -79,15 +81,34 @@ export default function QuoteDetail() {
   }
 
   function shareQuote() {
+    const businessName = settings.businessName || 'Pocket Office';
     const text = [
-      `Quote ${quote.quoteNumber}`,
-      `Client: ${quote.clientName}`,
-      `Site: ${quote.siteAddress}`,
+      '═══════════════════════════════',
+      `QUOTE ${quote.quoteNumber}`,
+      '═══════════════════════════════',
       '',
+      `From: ${businessName}`,
+      settings.abn ? `ABN: ${settings.abn}` : '',
+      settings.phone ? `Ph: ${settings.phone}` : '',
+      settings.email ? `Email: ${settings.email}` : '',
+      '',
+      `To: ${quote.clientName || 'Client'}`,
+      quote.siteAddress ? `Site: ${quote.siteAddress}` : '',
+      '',
+      '--- Items ---',
       ...(quote.materials || []).map(m => `${m.name}: ${m.qty} x ${formatCents(m.unitPrice)} = ${formatCents(m.total)}`),
       '',
-      `Total: ${formatCents(quote.totalPrice)} (inc. GST)`,
-    ].join('\n');
+      `Labour: ${formatCents(quote.labourHours * quote.labourRate)} (${quote.labourHours} hrs)`,
+      quote.travelCost ? `Travel: ${formatCents(quote.travelCost)}` : '',
+      quote.consumablesCost ? `Consumables: ${formatCents(quote.consumablesCost)}` : '',
+      '',
+      `Subtotal: ${formatCents(quote.subtotal)}`,
+      `GST (${quote.taxRate || 10}%): ${formatCents(quote.taxAmount)}`,
+      `TOTAL: ${formatCents(quote.totalPrice)}`,
+      '',
+      quote.validUntil ? `Valid until: ${quote.validUntil}` : '',
+      quote.notes ? `\nNotes: ${quote.notes}` : '',
+    ].filter(Boolean).join('\n');
 
     if (navigator.share) {
       navigator.share({ title: `Quote ${quote.quoteNumber}`, text });

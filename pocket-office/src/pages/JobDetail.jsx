@@ -122,6 +122,13 @@ export default function JobDetail() {
             <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{expenses.length} logged</div>
           </div>
         </div>
+        <div className="card card-clickable" onClick={() => navigate(`/swms?jobId=${id}`)}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 24, marginBottom: 4 }}>⚠</div>
+            <div style={{ fontWeight: 600 }}>SWMS</div>
+            <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Safety docs</div>
+          </div>
+        </div>
       </div>
 
       {expenses.length > 0 && (
